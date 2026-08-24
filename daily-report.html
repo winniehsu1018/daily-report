@@ -45,7 +45,7 @@
         </div>
 
         <div class="form-group">
-            <label for="partSearch">件號 / 品名 (可直接輸入關鍵字模糊搜尋)：</label>
+            <label for="partSearch">件號 / 品名 (模糊搜尋)：</label>
             <input type="text" id="partSearch" placeholder="輸入件號或名稱過濾..." oninput="filterParts()">
             <select id="part" size="4" style="margin-top: 5px;" onchange="selectPart()">
                 <option value="">請先輸入關鍵字搜尋件號</option>
@@ -66,8 +66,6 @@
                 <option value="">-- 無 --</option>
                 <option value="架機">架機</option>
                 <option value="換刀">換刀</option>
-                <option value="調機">調機</option>
-                <option value="故障">故障</option>
                 <option value="清潔">清潔</option>
                 <option value="點檢">點檢</option>
                 <option value="待料">待料</option>
@@ -92,9 +90,11 @@
 </div>
 
 <script>
+    // 🔴 請在這裡填入您在 Google Apps Script 部署 Web App 後取得的網址
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
+
     let allParts = [];
 
-    // 網頁載入時自動取得選單資料
     window.onload = function() {
         // 自動填入當前日期 (MMDD)
         const now = new Date();
@@ -102,11 +102,14 @@
         const day = String(now.getDate()).padStart(2, '0');
         document.getElementById('date').value = month + day;
 
-        google.script.run.withSuccessHandler(initOptions).getSystemOptions();
+        // 透過 fetch 從 GAS 取得機台與件號清單
+        fetch(GAS_WEB_APP_URL + "?action=getOptions")
+            .then(res => res.json())
+            .then(data => initOptions(data))
+            .catch(err => alert("❌ 無法載入選單資料：" + err));
     };
 
     function initOptions(data) {
-        // 填入機台選單
         const machineSelect = document.getElementById('machine');
         machineSelect.innerHTML = '<option value="">請選擇機台</option>';
         data.machines.forEach(m => {
@@ -116,12 +119,10 @@
             machineSelect.appendChild(opt);
         });
 
-        // 儲存件號清單供模糊搜尋使用
         allParts = data.parts;
         updatePartDropdown(allParts);
     }
 
-    // 件號模糊搜尋過濾
     function filterParts() {
         const keyword = document.getElementById('partSearch').value.toLowerCase();
         const filtered = allParts.filter(p => p.label.toLowerCase().includes(keyword));
@@ -170,28 +171,28 @@
             remark: document.getElementById('remark').value
         };
 
-        google.script.run
-            .withSuccessHandler(onSuccess)
-            .withFailureHandler(onFailure)
-            .submitReportData(formData);
-    }
-
-    function onSuccess(res) {
-        alert(res.message);
-        document.getElementById('submitBtn').style.display = 'block';
-        document.getElementById('loadingText').style.display = 'none';
-        if(res.success) {
-            document.getElementById('qty').value = 0;
-            document.getElementById('invalidMin').value = 0;
-            document.getElementById('invalidType').value = "";
-            document.getElementById('remark').value = "";
-        }
-    }
-
-    function onFailure(err) {
-        alert("❌ 發生錯誤: " + err.message);
-        document.getElementById('submitBtn').style.display = 'block';
-        document.getElementById('loadingText').style.display = 'none';
+        // 使用 fetch 發送 POST 請求給 GAS
+        fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify(formData)
+        })
+        .then(res => res.json())
+        .then(res => {
+            alert(res.message);
+            document.getElementById('submitBtn').style.display = 'block';
+            document.getElementById('loadingText').style.display = 'none';
+            if(res.success) {
+                document.getElementById('qty').value = 0;
+                document.getElementById('invalidMin').value = 0;
+                document.getElementById('invalidType').value = "";
+                document.getElementById('remark').value = "";
+            }
+        })
+        .catch(err => {
+            alert("❌ 發生錯誤: " + err);
+            document.getElementById('submitBtn').style.display = 'block';
+            document.getElementById('loadingText').style.display = 'none';
+        });
     }
 </script>
 
