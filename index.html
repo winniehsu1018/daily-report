@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CNC 生產日報回報系統</title>
-    <!-- 1. 引入 LINE LIFF SDK -->
+    <!-- 引入 LINE LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
@@ -21,6 +21,7 @@
         #loading { display: none; text-align: center; color: #007bff; font-weight: bold; margin-top: 10px; }
         .time-hint { font-size: 12px; color: #888; margin-top: 3px; }
         #userInfo { font-size: 13px; color: #666; text-align: right; margin-bottom: 15px; }
+        .invalid-box { background: #f9f9f9; padding: 12px; border-radius: 5px; border: 1px dashed #ccc; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -92,24 +93,44 @@
             <input type="number" step="0.01" id="unitSeconds" required placeholder="請輸入單件秒數 (例: 8.57)">
         </div>
 
-        <!-- 無效工時類別與分鐘 -->
-        <div class="form-group">
-            <label for="invalidType">無效工時類別 (選填)：</label>
-            <select id="invalidType">
-                <option value="">無</option>
-                <option value="架機">架機</option>
-                <option value="換刀">換刀</option>
-                <option value="清潔">清潔</option>
-                <option value="點檢">點檢</option>
-                <option value="待料">待料</option>
-                <option value="換批">換批</option>
-                <option value="其他">其他</option>
-            </select>
+        <!-- 無效工時項目 1 -->
+        <div class="invalid-box">
+            <label>無效工時項目 1 (選填)：</label>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <select id="invalidType1">
+                    <option value="">無</option>
+                    <option value="架機">架機</option>
+                    <option value="換刀">換刀</option>
+                    <option value="清潔">清潔</option>
+                    <option value="點檢">點檢</option>
+                    <option value="待料">待料</option>
+                    <option value="換批">換批</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <input type="number" id="invalidMin1" placeholder="請輸入項目 1 分鐘數">
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="invalidMin">無效工時分鐘數 (選填)：</label>
-            <input type="number" id="invalidMin" placeholder="請輸入分鐘數">
+        <!-- 無效工時項目 2 -->
+        <div class="invalid-box">
+            <label>無效工時項目 2 (選填)：</label>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <select id="invalidType2">
+                    <option value="">無</option>
+                    <option value="架機">架機</option>
+                    <option value="換刀">換刀</option>
+                    <option value="清潔">清潔</option>
+                    <option value="點檢">點檢</option>
+                    <option value="待料">待料</option>
+                    <option value="換批">換批</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <input type="number" id="invalidMin2" placeholder="請輸入項目 2 分鐘數">
+            </div>
         </div>
 
         <!-- 備註 -->
@@ -124,17 +145,13 @@
 </div>
 
 <script>
-    // ⚠️ 請填入您的 Google Apps Script 部署網址 (/exec)
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
-    
-    // ⚠️ 請換成你在 LINE Developers 後台建立的 LIFF ID
     const LIFF_ID = "2011225260-9FkqdTAH"; 
 
     let allMachines = [];
     let allParts = [];
     let userProfile = {};
 
-    // 網頁載入時初始化 LIFF 與其他設定
     window.onload = function() {
         const today = new Date();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -146,17 +163,13 @@
         initializeLiff();
     };
 
-    // 初始化 LINE LIFF
     function initializeLiff() {
         liff.init({ liffId: LIFF_ID })
             .then(() => {
-                if (!liff.isInClient()) {
-                    if (!liff.isLoggedIn()) {
-                        liff.login(); // 若在外部瀏覽器開啟則引導登入 LINE
-                        return;
-                    }
+                if (!liff.isInClient() && !liff.isLoggedIn()) {
+                    liff.login();
+                    return;
                 }
-                // 取得使用者資料
                 liff.getProfile().then(profile => {
                     userProfile = profile;
                     document.getElementById('userInfo').textContent = `👤 登入身分: ${profile.displayName}`;
@@ -171,7 +184,6 @@
             });
     }
 
-    // 取得選單資料
     function fetchOptions() {
         fetch(GAS_WEB_APP_URL + "?action=getOptions")
             .then(res => res.json())
@@ -182,14 +194,12 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
-    // 模糊搜尋機台
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     machineInput.addEventListener('input', function() {
         const val = this.value.toLowerCase();
         machineList.innerHTML = '';
         if (!val) { machineList.style.display = 'none'; return; }
-        
         const filtered = allMachines.filter(m => m.toLowerCase().includes(val));
         if (filtered.length > 0) {
             machineList.style.display = 'block';
@@ -208,14 +218,12 @@
         }
     });
 
-    // 模糊搜尋品名
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     partInput.addEventListener('input', function() {
         const val = this.value.toLowerCase();
         partList.innerHTML = '';
         if (!val) { partList.style.display = 'none'; return; }
-        
         const filtered = allParts.filter(p => p.toLowerCase().includes(val));
         if (filtered.length > 0) {
             partList.style.display = 'block';
@@ -234,13 +242,11 @@
         }
     });
 
-    // 點擊空白處關閉下拉選單
     document.addEventListener('click', function(e) {
         if (!machineInput.contains(e.target)) machineList.style.display = 'none';
         if (!partInput.contains(e.target)) partList.style.display = 'none';
     });
 
-    // 4位數字自動轉為時間格式
     function formatTimeInput(input) {
         let val = input.value.replace(/\D/g, '');
         if (val.length === 4) {
@@ -250,12 +256,10 @@
         }
     }
 
-    // 班別連動應有工時選項
     function handleShiftChange() {
         const shift = document.getElementById('shift').value;
         const whSelect = document.getElementById('workingHours');
         whSelect.innerHTML = '';
-        
         if (shift === '白班') {
             let opt = document.createElement('option');
             opt.value = '540';
@@ -273,20 +277,19 @@
         }
     }
 
-    // 表單送出 (含 LINE userId 身分)
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
         if (!userProfile.userId) {
-            alert("⚠️ 尚未取得 LINE 身分識別，請重新整理頁面或確認是否授權登入！");
+            alert("⚠️ 尚未取得 LINE 身分識別，請重新整理頁面！");
             return;
         }
 
         document.getElementById('loading').style.display = 'block';
         
         const formData = {
-            userId: userProfile.userId,       // 👈 帶入 LINE User ID 供後端白名單驗證
-            userName: userProfile.displayName, // 👈 帶入 LINE 顯示名稱備用
+            userId: userProfile.userId,
+            userName: userProfile.displayName,
             date: document.getElementById('date').value,
             shift: document.getElementById('shift').value,
             machine: machineInput.value,
@@ -296,8 +299,10 @@
             workingHours: document.getElementById('workingHours').value,
             qty: document.getElementById('qty').value,
             unitSeconds: document.getElementById('unitSeconds').value,
-            invalidType: document.getElementById('invalidType').value,
-            invalidMin: document.getElementById('invalidMin').value,
+            invalidType1: document.getElementById('invalidType1').value,
+            invalidMin1: document.getElementById('invalidMin1').value,
+            invalidType2: document.getElementById('invalidType2').value,
+            invalidMin2: document.getElementById('invalidMin2').value,
             remark: document.getElementById('remark').value
         };
 
@@ -310,10 +315,12 @@
             document.getElementById('loading').style.display = 'none';
             alert(data.message);
             if (data.success) {
-                // 清空部分欄位
                 document.getElementById('qty').value = '';
                 document.getElementById('unitSeconds').value = '';
-                document.getElementById('invalidMin').value = '';
+                document.getElementById('invalidMin1').value = '';
+                document.getElementById('invalidMin2').value = '';
+                document.getElementById('invalidType1').value = '';
+                document.getElementById('invalidType2').value = '';
                 document.getElementById('remark').value = '';
                 machineInput.value = '';
                 partInput.value = '';
