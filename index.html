@@ -37,15 +37,18 @@
             </select>
         </div>
 
+        <!-- 機台選擇 (支援模糊搜尋) -->
         <div class="form-group">
-            <label for="machine">機台選擇：</label>
-            <select id="machine" required>
-                <option value="">載入中...</option>
+            <label for="machineSearch">機台編號 (可直接輸入關鍵字模糊搜尋)：</label>
+            <input type="text" id="machineSearch" placeholder="輸入機台代號過濾 (例如: YCL)..." oninput="filterMachines()">
+            <select id="machine" size="4" style="margin-top: 5px;" onchange="selectMachine()" required>
+                <option value="">請先輸入關鍵字搜尋機台</option>
             </select>
         </div>
 
+        <!-- 件號選擇 (支援模糊搜尋) -->
         <div class="form-group">
-            <label for="partSearch">件號 / 品名 (模糊搜尋)：</label>
+            <label for="partSearch">件號 / 品名 (可直接輸入關鍵字模糊搜尋)：</label>
             <input type="text" id="partSearch" placeholder="輸入件號或名稱過濾..." oninput="filterParts()">
             <select id="part" size="4" style="margin-top: 5px;" onchange="selectPart()">
                 <option value="">請先輸入關鍵字搜尋件號</option>
@@ -93,6 +96,7 @@
     // 🔴 請在這裡填入您在 Google Apps Script 部署 Web App 後取得的網址
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
 
+    let allMachines = [];
     let allParts = [];
 
     window.onload = function() {
@@ -110,19 +114,48 @@
     };
 
     function initOptions(data) {
+        // 載入機台資料
+        allMachines = data.machines || [];
+        updateMachineDropdown(allMachines);
+
+        // 載入件號資料
+        allParts = data.parts || [];
+        updatePartDropdown(allParts);
+    }
+
+    // 機台模糊搜尋過濾
+    function filterMachines() {
+        const keyword = document.getElementById('machineSearch').value.toLowerCase();
+        const filtered = allMachines.filter(m => m.toLowerCase().includes(keyword));
+        updateMachineDropdown(filtered);
+    }
+
+    function updateMachineDropdown(machinesList) {
         const machineSelect = document.getElementById('machine');
-        machineSelect.innerHTML = '<option value="">請選擇機台</option>';
-        data.machines.forEach(m => {
+        machineSelect.innerHTML = '';
+        if (machinesList.length === 0) {
+            let opt = document.createElement('option');
+            opt.value = "";
+            opt.textContent = "查無符合的機台";
+            machineSelect.appendChild(opt);
+            return;
+        }
+        machinesList.forEach(m => {
             let opt = document.createElement('option');
             opt.value = m;
             opt.textContent = m;
             machineSelect.appendChild(opt);
         });
-
-        allParts = data.parts;
-        updatePartDropdown(allParts);
     }
 
+    function selectMachine() {
+        const machineSelect = document.getElementById('machine');
+        if (machineSelect.selectedOptions.length > 0) {
+            document.getElementById('machineSearch').value = machineSelect.selectedOptions[0].textContent;
+        }
+    }
+
+    // 件號模糊搜尋過濾
     function filterParts() {
         const keyword = document.getElementById('partSearch').value.toLowerCase();
         const filtered = allParts.filter(p => p.label.toLowerCase().includes(keyword));
@@ -154,6 +187,7 @@
         }
     }
 
+    // 提交表單資料
     function submitForm(event) {
         event.preventDefault();
         
