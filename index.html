@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CNC 生產日報回報系統</title>
+    <!-- 1. 引入 LINE LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
         .container { max-width: 600px; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: auto; }
-        h2 { text-align: color: #333; margin-bottom: 20px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; position: relative; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
         input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
@@ -18,12 +20,15 @@
         button:hover { background: #0056b3; }
         #loading { display: none; text-align: center; color: #007bff; font-weight: bold; margin-top: 10px; }
         .time-hint { font-size: 12px; color: #888; margin-top: 3px; }
+        #userInfo { font-size: 13px; color: #666; text-align: right; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>CNC 生產日報回報</h2>
+    <div id="userInfo">正在取得 LINE 身分中...</div>
+
     <form id="reportForm">
         <!-- 日期 -->
         <div class="form-group">
@@ -54,7 +59,7 @@
             <div id="partList" class="dropdown-list"></div>
         </div>
 
-        <!-- 開始時間與結算時間 (免打冒號) -->
+        <!-- 開始時間與結算時間 -->
         <div class="form-group">
             <label for="startTime">開始時間：</label>
             <input type="text" id="startTime" placeholder="例: 0800" maxlength="4" onblur="formatTimeInput(this)" required>
@@ -67,7 +72,7 @@
             <div class="time-hint">💡 直接輸入 4 位數字即可（如 1700 會自動轉為 17:00）</div>
         </div>
 
-        <!-- 應有工時 (動態：白班540 / 中班可選510或630) -->
+        <!-- 應有工時 -->
         <div class="form-group">
             <label for="workingHours">應有工時 (分鐘)：</label>
             <select id="workingHours" required>
@@ -113,7 +118,7 @@
             <input type="text" id="remark" placeholder="如有特殊狀況請填寫">
         </div>
 
-        <button type="submit">確認送出</button>
+        <button type="submit" id="submitBtn">確認送出</button>
         <div id="loading">正在送出資料，請稍候...</div>
     </form>
 </div>
@@ -121,11 +126,15 @@
 <script>
     // ⚠️ 請填入您的 Google Apps Script 部署網址 (/exec)
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
+    
+    // ⚠️ 請換成你在 LINE Developers 後台建立的 LIFF ID
+    const LIFF_ID = "你的-LIFF-ID"; 
 
     let allMachines = [];
     let allParts = [];
+    let userProfile = {};
 
-    // 自動填入今天日期 MMDD
+    // 網頁載入時初始化 LIFF 與其他設定
     window.onload = function() {
         const today = new Date();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -133,8 +142,34 @@
         document.getElementById('date').value = mm + dd;
         
         fetchOptions();
-        handleShiftChange(); // 初始化班別對應工時
+        handleShiftChange();
+        initializeLiff();
     };
+
+    // 初始化 LINE LIFF
+    function initializeLiff() {
+        liff.init({ liffId: LIFF_ID })
+            .then(() => {
+                if (!liff.isInClient()) {
+                    if (!liff.isLoggedIn()) {
+                        liff.login(); // 若在外部瀏覽器開啟則引導登入 LINE
+                        return;
+                    }
+                }
+                // 取得使用者資料
+                liff.getProfile().then(profile => {
+                    userProfile = profile;
+                    document.getElementById('userInfo').textContent = `👤 登入身分: ${profile.displayName}`;
+                }).catch(err => {
+                    console.error('getProfile err', err);
+                    document.getElementById('userInfo').textContent = '⚠️ 無法取得 LINE 使用者資訊';
+                });
+            })
+            .catch(err => {
+                console.error('LIFF Initialization failed', err);
+                document.getElementById('userInfo').textContent = '⚠️ LINE 登入初始化失敗';
+            });
+    }
 
     // 取得選單資料
     function fetchOptions() {
@@ -205,9 +240,9 @@
         if (!partInput.contains(e.target)) partList.style.display = 'none';
     });
 
-    // 4位數字自動轉為時間格式 (例: 0800 -> 08:00)
+    // 4位數字自動轉為時間格式
     function formatTimeInput(input) {
-        let val = input.value.replace(/\D/g, ''); // 移除所有非數字
+        let val = input.value.replace(/\D/g, '');
         if (val.length === 4) {
             input.value = val.substring(0, 2) + ':' + val.substring(2, 4);
         } else if (val.length === 3) {
@@ -238,13 +273,20 @@
         }
     }
 
-    // 表單送出
+    // 表單送出 (含 LINE userId 身分)
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
+        if (!userProfile.userId) {
+            alert("⚠️ 尚未取得 LINE 身分識別，請重新整理頁面或確認是否授權登入！");
+            return;
+        }
+
         document.getElementById('loading').style.display = 'block';
         
         const formData = {
+            userId: userProfile.userId,       // 👈 帶入 LINE User ID 供後端白名單驗證
+            userName: userProfile.displayName, // 👈 帶入 LINE 顯示名稱備用
             date: document.getElementById('date').value,
             shift: document.getElementById('shift').value,
             machine: machineInput.value,
