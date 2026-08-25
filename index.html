@@ -69,14 +69,14 @@
         <!-- 開始時間與結算時間 -->
         <div class="form-group">
             <label for="startTime">開始時間：</label>
-            <input type="text" id="startTime" placeholder="例: 0800" maxlength="4" onblur="formatTimeInput(this)" required>
-            <div class="time-hint">💡 直接輸入 4 位數字即可（如 0800 會自動轉為 08:00）</div>
+            <input type="text" id="startTime" placeholder="例: 0800" maxlength="5" oninput="autoFormatTime(this, 'endTime')" required>
+            <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 0800 ➔ 08:00）</div>
         </div>
 
         <div class="form-group">
             <label for="endTime">結算時間：</label>
-            <input type="text" id="endTime" placeholder="例: 1700" maxlength="4" onblur="formatTimeInput(this)" required>
-            <div class="time-hint">💡 直接輸入 4 位數字即可（如 1700 會自動轉為 17:00）</div>
+            <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatTime(this, 'workingHours')" required>
+            <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 1700 ➔ 17:00）</div>
         </div>
 
         <!-- 應有工時 -->
@@ -87,10 +87,10 @@
             </select>
         </div>
 
-        <!-- 完成數量 -->
+        <!-- 完成數量 (按 Enter 或手機完成鍵自動跳到秒數) -->
         <div class="form-group">
             <label for="qty">本次完成數量 (pcs)：</label>
-            <input type="number" id="qty" min="0" required placeholder="請輸入完成數量">
+            <input type="number" id="qty" min="0" required placeholder="請輸入完成數量" onkeydown="jumpToNext(event, 'unitSeconds')">
         </div>
 
         <!-- N 欄單件秒數 -->
@@ -136,7 +136,7 @@
 
 <script>
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
-    const LIFF_ID = "2011225260-9FkqdTAH"; 
+    const LIFF_ID = "你的-LIFF-ID"; 
 
     let allMachines = [];
     let allParts = [];
@@ -270,6 +270,31 @@
             });
     }
 
+    // 💡 智慧跳格輔助函式 (按下 Enter 時觸發)
+    function jumpToNext(e, nextId) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const nextEl = document.getElementById(nextId);
+            if (nextEl) nextEl.focus();
+        }
+    }
+
+    // 💡 智慧時間輸入：打滿 4 位數字自動加上冒號並跳到下一個欄位
+    function autoFormatTime(input, nextId) {
+        let val = input.value.replace(/\D/g, '');
+        if (val.length >= 4) {
+            input.value = val.substring(0, 2) + ':' + val.substring(2, 4);
+            // 當打滿 4 位自動轉換後，自動將游標跳到指定的下一個欄位
+            if (nextId) {
+                const nextEl = document.getElementById(nextId);
+                if (nextEl) nextEl.focus();
+            }
+        } else {
+            input.value = val;
+        }
+    }
+
+    // 💡 機台編號
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
@@ -297,6 +322,8 @@
                     machineInput.value = item;
                     machineList.style.display = 'none';
                     fetchLastRecord();
+                    // 💡 選好機台後，自動跳到「品名規格」欄位
+                    document.getElementById('part').focus();
                 };
                 machineList.appendChild(div);
             });
@@ -319,6 +346,9 @@
             e.preventDefault();
             if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
                 items[machineCurrentFocus].click();
+            } else if (items.length > 0) {
+                // 如果沒有用上下鍵選，但清單有項目，預設選第一項
+                items[0].click();
             }
         }
     });
@@ -346,6 +376,7 @@
         fetchLastRecord();
     });
 
+    // 💡 品名規格
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
@@ -372,6 +403,8 @@
                 div.onclick = function() {
                     partInput.value = item;
                     partList.style.display = 'none';
+                    // 💡 選好品名後，自動跳到「開始時間」欄位
+                    document.getElementById('startTime').focus();
                 };
                 partList.appendChild(div);
             });
@@ -394,6 +427,8 @@
             e.preventDefault();
             if (partCurrentFocus > -1 && items[partCurrentFocus]) {
                 items[partCurrentFocus].click();
+            } else if (items.length > 0) {
+                items[0].click();
             }
         }
     });
@@ -406,15 +441,6 @@
         if (!machineInput.contains(e.target)) machineList.style.display = 'none';
         if (!partInput.contains(e.target)) partList.style.display = 'none';
     });
-
-    function formatTimeInput(input) {
-        let val = input.value.replace(/\D/g, '');
-        if (val.length === 4) {
-            input.value = val.substring(0, 2) + ':' + val.substring(2, 4);
-        } else if (val.length === 3) {
-            input.value = '0' + val.substring(0, 1) + ':' + val.substring(1, 3);
-        }
-    }
 
     function handleShiftChange() {
         const shift = document.getElementById('shift').value;
@@ -455,7 +481,6 @@
             return;
         }
 
-        // 💡 時間轉換為分鐘數的輔助函式
         let parseMinutes = (timeStr) => {
             let parts = timeStr.split(':');
             let h = parseInt(parts[0], 10);
@@ -466,32 +491,24 @@
         let startMin = parseMinutes(startTime);
         let endMin = parseMinutes(endTime);
 
-        // 💡 1. 班別時間範圍防呆驗證
         if (shift === '白班') {
-            // 白班範圍：08:00 (480分) ~ 17:00 (1020分)
-            // 允許前後稍微彈性一點點或嚴格限制在 08:00 ~ 17:00
             if (startMin < 480 || startMin > 1020 || endMin < 480 || endMin > 1020) {
                 alert("❌ 【白班】的開始與結束時間必須在 08:00 ~ 17:00 之間！");
                 return;
             }
         } else if (shift === '中班') {
-            // 中班範圍：17:00 (1020分) 開始，跨夜至隔天 03:30 (210分，即 3.5小時+24小時 = 270分 或 03:30 換算)
-            // 為了支援跨夜，中班的時間若在 00:00 ~ 08:00 之間，視為跨夜（+1440分鐘）
             let adjStartMin = startMin;
             let adjEndMin = endMin;
             
-            if (adjStartMin < 480) adjStartMin += 1440; // 凌晨視為隔天
-            if (adjEndMin < 480) adjEndMin += 1440;     // 凌晨視為隔天
+            if (adjStartMin < 480) adjStartMin += 1440; 
+            if (adjEndMin < 480) adjEndMin += 1440;     
             
-            // 中班起點 17:00 = 1020分，終點 03:30 = 3小時30分 + 24小時 = 270 + 1440 = 1710分
-            // 也就是中班有效區間大約是 1020分 到 1710分 之間
             if (adjStartMin < 1020 || adjEndMin > 1710 || adjStartMin > adjEndMin) {
                 alert("❌ 【中班】的開始與結束時間必須在 17:00 ~ 03:30 跨夜範圍內！");
                 return;
             }
         }
 
-        // 💡 2. 機台連續報工的時間序列防呆（不可早於上一筆結算時間）
         if (lastEndTime && startTime) {
             let lastEndMin = parseMinutes(lastEndTime);
             let isLastNight = (lastEndMin < 480); 
@@ -595,6 +612,8 @@
                     </div>
                 `;
                 document.getElementById('addInvalidBtn').style.display = 'block';
+                // 提交成功後，將游標重新移回機台編號方便報下一筆
+                machineInput.focus();
             }
         })
         .catch(err => {
