@@ -75,14 +75,14 @@
 
         <div class="form-group">
             <label for="endTime">結算時間：</label>
-            <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatTime(this, 'workingHours')" onblur="validateTimeInput(this)" required>
+            <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatEndTime(this)" onblur="validateTimeInput(this)" required>
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 1700 ➔ 17:00）</div>
         </div>
 
         <!-- 應有工時 -->
         <div class="form-group">
             <label for="workingHours">應有工時 (分鐘)：</label>
-            <select id="workingHours" required>
+            <select id="workingHours" required onkeydown="jumpToNext(event, 'qty')">
                 <option value="540">540 分鐘 (標準白班)</option>
             </select>
         </div>
@@ -303,6 +303,32 @@
         }
     }
 
+    // 💡 結算時間專用格式化：如果是白班，打滿 4 碼後自動跳過應有工時直接到完成數量 (qty)；中班則跳到應有工時 (workingHours)
+    function autoFormatEndTime(input) {
+        let val = input.value.replace(/\D/g, '');
+        if (val.length >= 4) {
+            let hour = parseInt(val.substring(0, 2), 10);
+            let minute = parseInt(val.substring(2, 4), 10);
+
+            if (hour > 23 || minute > 59) {
+                alert(`❌ 輸入的時間 (${val.substring(0,2)}:${val.substring(2,4)}) 無效！`);
+                input.value = '';
+                input.focus();
+                return;
+            }
+
+            input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+            
+            const shift = document.getElementById('shift').value;
+            let nextTargetId = (shift === '白班') ? 'qty' : 'workingHours';
+            
+            const nextEl = document.getElementById(nextTargetId);
+            if (nextEl) nextEl.focus();
+        } else {
+            input.value = val;
+        }
+    }
+
     function validateTimeInput(input) {
         let val = input.value.trim();
         if (!val) return;
@@ -312,7 +338,7 @@
             let hour = parseInt(cleanVal.substring(0, 2), 10);
             let minute = parseInt(cleanVal.substring(2, 4), 10);
             if (hour > 23 || minute > 59) {
-                alert(`❌ 輸入的時間 (${val}) 無效！小時應在 00~23 之間，分鐘應在 00~59 之間。`);
+                alert(`❌ 輸入的時間 (${val}) 無效！`);
                 input.value = '';
                 input.focus();
                 return;
@@ -496,7 +522,7 @@
         }
     }
 
-    // 表單送出（含班別範圍防呆、時間合理性與跨夜檢查）
+    // 表單送出
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
