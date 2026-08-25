@@ -21,8 +21,12 @@
         #loading { display: none; text-align: center; color: #007bff; font-weight: bold; margin-top: 10px; }
         .time-hint { font-size: 12px; color: #888; margin-top: 3px; }
         #userInfo { font-size: 13px; color: #666; text-align: right; margin-bottom: 15px; }
-        .invalid-box { background: #f9f9f9; padding: 12px; border-radius: 5px; border: 1px dashed #ccc; margin-bottom: 10px; }
+        .invalid-box { background: #f9f9f9; padding: 12px; border-radius: 5px; border: 1px dashed #ccc; margin-bottom: 10px; position: relative; }
         .auto-hint { font-size: 12px; color: #28a745; margin-top: 3px; font-weight: bold; }
+        .btn-add { background: #28a745; width: auto; padding: 6px 14px; font-size: 14px; margin-bottom: 15px; }
+        .btn-add:hover { background: #218838; }
+        .btn-remove { background: #dc3545; width: auto; padding: 4px 10px; font-size: 12px; float: right; margin-top: 0; }
+        .btn-remove:hover { background: #c82333; }
     </style>
 </head>
 <body>
@@ -83,60 +87,45 @@
             </select>
         </div>
 
-        <!-- 完成數量 (加上 min="0") -->
+        <!-- 完成數量 -->
         <div class="form-group">
             <label for="qty">本次完成數量 (pcs)：</label>
             <input type="number" id="qty" min="0" required placeholder="請輸入完成數量">
         </div>
 
-        <!-- N 欄單件秒數 (加上 min="0") -->
+        <!-- N 欄單件秒數 -->
         <div class="form-group">
             <label for="unitSeconds">生產回報單件工時 (S) 秒數：</label>
             <input type="number" step="0.01" id="unitSeconds" min="0" required placeholder="請輸入單件秒數 (例: 8.57)">
         </div>
 
-        <!-- 無效工時項目 1 (加上 min="0") -->
-        <div class="invalid-box">
-            <label>無效工時項目 1 (選填)：</label>
-            <div class="form-group" style="margin-bottom: 8px;">
-                <select id="invalidType1">
-                    <option value="">無</option>
-                    <option value="架機">架機</option>
-                    <option value="換刀">換刀</option>
-                    <option value="清潔">清潔</option>
-                    <option value="點檢">點檢</option>
-                    <option value="待料">待料</option>
-                    <option value="換批">換批</option>
-                    <option value="其他">其他</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <input type="number" id="invalidMin1" min="0" placeholder="請輸入項目 1 分鐘數">
-            </div>
-        </div>
-
-        <!-- 無效工時項目 2 (加上 min="0") -->
-        <div class="invalid-box">
-            <label>無效工時項目 2 (選填)：</label>
-            <div class="form-group" style="margin-bottom: 8px;">
-                <select id="invalidType2">
-                    <option value="">無</option>
-                    <option value="架機">架機</option>
-                    <option value="換刀">換刀</option>
-                    <option value="清潔">清潔</option>
-                    <option value="點檢">點檢</option>
-                    <option value="待料">待料</option>
-                    <option value="換批">換批</option>
-                    <option value="其他">其他</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <input type="number" id="invalidMin2" min="0" placeholder="請輸入項目 2 分鐘數">
+        <!-- 動態無效工時區塊 -->
+        <label>無效工時項目 (選填)：</label>
+        <div id="invalidContainer">
+            <!-- 預設第一組 -->
+            <div class="invalid-box" data-index="1">
+                <span>項目 1</span>
+                <div class="form-group" style="margin-top: 8px; margin-bottom: 8px;">
+                    <select class="invalidType">
+                        <option value="">無</option>
+                        <option value="架機">架機</option>
+                        <option value="換刀">換刀</option>
+                        <option value="清潔">清潔</option>
+                        <option value="點檢">點檢</option>
+                        <option value="待料">待料</option>
+                        <option value="換批">換批</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <input type="number" class="invalidMin" min="0" placeholder="請輸入分鐘數">
+                </div>
             </div>
         </div>
+        <button type="button" class="btn-add" id="addInvalidBtn" onclick="addInvalidBox()">＋ 新增無效工時項目</button>
 
         <!-- 備註 -->
-        <div class="form-group">
+        <div class="form-group" style="margin-top: 15px;">
             <label for="remark">備註 (選填)：</label>
             <input type="text" id="remark" placeholder="如有特殊狀況請填寫">
         </div>
@@ -147,10 +136,7 @@
 </div>
 
 <script>
-    // ⚠️ 請填入您的 Google Apps Script 部署網址 (/exec)
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
-    
-    // ⚠️ 請換成你在 LINE Developers 後台建立的 LIFF ID
     const LIFF_ID = "2011225260-9FkqdTAH"; 
 
     let allMachines = [];
@@ -199,7 +185,60 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
-    // 自動帶入上一筆機台紀錄
+    // 動態增減無效工時方框 (最多 3 組)
+    function addInvalidBox() {
+        const container = document.getElementById('invalidContainer');
+        const count = container.getElementsByClassName('invalid-box').length;
+        if (count >= 3) {
+            alert("⚠️ 最多只能新增 3 組無效工時項目！");
+            return;
+        }
+
+        const newIndex = count + 1;
+        const div = document.createElement('div');
+        div.className = 'invalid-box';
+        div.setAttribute('data-index', newIndex);
+        div.innerHTML = `
+            <span>項目 ${newIndex}</span>
+            <button type="button" class="btn-remove" onclick="removeInvalidBox(this)">刪除</button>
+            <div class="form-group" style="margin-top: 8px; margin-bottom: 8px;">
+                <select class="invalidType">
+                    <option value="">無</option>
+                    <option value="架機">架機</option>
+                    <option value="換刀">換刀</option>
+                    <option value="清潔">清潔</option>
+                    <option value="點檢">點檢</option>
+                    <option value="待料">待料</option>
+                    <option value="換批">換批</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <input type="number" class="invalidMin" min="0" placeholder="請輸入分鐘數">
+            </div>
+        `;
+        container.appendChild(div);
+
+        if (container.getElementsByClassName('invalid-box').length >= 3) {
+            document.getElementById('addInvalidBtn').style.display = 'none';
+        }
+    }
+
+    function removeInvalidBox(btn) {
+        const box = btn.closest('.invalid-box');
+        box.remove();
+        document.getElementById('addInvalidBtn').style.display = 'block';
+        updateInvalidLabels();
+    }
+
+    function updateInvalidLabels() {
+        const boxes = document.querySelectorAll('.invalid-box');
+        boxes.forEach((box, index) => {
+            box.setAttribute('data-index', index + 1);
+            box.querySelector('span').textContent = `項目 ${index + 1}`;
+        });
+    }
+
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -224,7 +263,6 @@
             .catch(err => console.error("無法取得上一筆紀錄", err));
     }
 
-    // 模糊搜尋機台
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     machineInput.addEventListener('input', function() {
@@ -255,7 +293,6 @@
         fetchLastRecord();
     });
 
-    // 模糊搜尋品名
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     partInput.addEventListener('input', function() {
@@ -315,7 +352,7 @@
         }
     }
 
-    // 表單送出 (含防負數驗證)
+    // 表單送出
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -326,12 +363,28 @@
 
         const qty = Number(document.getElementById('qty').value);
         const unitSeconds = Number(document.getElementById('unitSeconds').value);
-        const invalidMin1 = Number(document.getElementById('invalidMin1').value) || 0;
-        const invalidMin2 = Number(document.getElementById('invalidMin2').value) || 0;
 
-        // 嚴格阻擋負數
-        if (qty < 0 || unitSeconds < 0 || invalidMin1 < 0 || invalidMin2 < 0) {
-            alert("❌ 數量、單件秒數與無效工時分鐘數皆不可輸入負數！");
+        if (qty < 0 || unitSeconds < 0) {
+            alert("❌ 數量與單件秒數皆不可輸入負數！");
+            return;
+        }
+
+        // 收集所有無效工時方框資料
+        const invalidBoxes = document.querySelectorAll('.invalid-box');
+        let invalidItems = [];
+        let hasNegativeInvalid = false;
+
+        invalidBoxes.forEach(box => {
+            let type = box.querySelector('.invalidType').value;
+            let min = Number(box.querySelector('.invalidMin').value) || 0;
+            if (min < 0) hasNegativeInvalid = true;
+            if (type && min > 0) {
+                invalidItems.push({ type: type, min: min });
+            }
+        });
+
+        if (hasNegativeInvalid) {
+            alert("❌ 無效工時分鐘數不可輸入負數！");
             return;
         }
 
@@ -349,10 +402,7 @@
             workingHours: document.getElementById('workingHours').value,
             qty: qty,
             unitSeconds: unitSeconds,
-            invalidType1: document.getElementById('invalidType1').value,
-            invalidMin1: invalidMin1,
-            invalidType2: document.getElementById('invalidType2').value,
-            invalidMin2: invalidMin2,
+            invalidItems: invalidItems, // 傳送動態陣列
             remark: document.getElementById('remark').value
         };
 
@@ -367,13 +417,33 @@
             if (data.success) {
                 document.getElementById('qty').value = '';
                 document.getElementById('unitSeconds').value = '';
-                document.getElementById('invalidMin1').value = '';
-                document.getElementById('invalidMin2').value = '';
-                document.getElementById('invalidType1').value = '';
-                document.getElementById('invalidType2').value = '';
                 document.getElementById('remark').value = '';
                 machineInput.value = '';
                 partInput.value = '';
+                
+                // 重置無效工時為留一個
+                const container = document.getElementById('invalidContainer');
+                container.innerHTML = `
+                    <div class="invalid-box" data-index="1">
+                        <span>項目 1</span>
+                        <div class="form-group" style="margin-top: 8px; margin-bottom: 8px;">
+                            <select class="invalidType">
+                                <option value="">無</option>
+                                <option value="架機">架機</option>
+                                <option value="換刀">換刀</option>
+                                <option value="清潔">清潔</option>
+                                <option value="點檢">點檢</option>
+                                <option value="待料">待料</option>
+                                <option value="換批">換批</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <input type="number" class="invalidMin" min="0" placeholder="請輸入分鐘數">
+                        </div>
+                    </div>
+                `;
+                document.getElementById('addInvalidBtn').style.display = 'block';
             }
         })
         .catch(err => {
