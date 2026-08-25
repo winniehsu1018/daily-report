@@ -74,8 +74,8 @@
         </div>
 
         <div class="form-group">
-            <label for="endTime">結算時間：</label>
-            <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatEndTime(this)" onblur="validateTimeInput(this)" required>
+            <label for="endTime">結算時間 (若填寫數量則必填)：</label>
+            <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatEndTime(this)" onblur="validateTimeInput(this)">
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 1700 ➔ 17:00）</div>
         </div>
 
@@ -270,7 +270,6 @@
             });
     }
 
-    // 智慧跳格與時間格式化
     function jumpToNext(e, nextId) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -286,7 +285,7 @@
             let minute = parseInt(val.substring(2, 4), 10);
 
             if (hour > 23 || minute > 59) {
-                alert(`❌ 輸入的時間 (${val.substring(0,2)}:${val.substring(2,4)}) 無效！小時應在 00~23 之間，分鐘應在 00~59 之間。`);
+                alert(`❌ 輸入的時間 (${val.substring(0,2)}:${val.substring(2,4)}) 無效！`);
                 input.value = '';
                 input.focus();
                 return;
@@ -303,7 +302,6 @@
         }
     }
 
-    // 💡 結算時間專用格式化：如果是白班，打滿 4 碼後自動跳過應有工時直接到完成數量 (qty)；中班則跳到應有工時 (workingHours)
     function autoFormatEndTime(input) {
         let val = input.value.replace(/\D/g, '');
         if (val.length >= 4) {
@@ -533,7 +531,15 @@
 
         const shift = document.getElementById('shift').value;
         const startTime = document.getElementById('startTime').value;
-        const endTime = document.getElementById('endTime').value;
+        const endTime = document.getElementById('endTime').value.trim();
+        const qty = Number(document.getElementById('qty').value) || 0;
+
+        // 💡 條件式防呆：若填寫了數量（> 0），則結算時間變成必填
+        if (qty > 0 && !endTime) {
+            alert("❌ 當您填寫了本次完成數量時，結算時間為必填欄位，請填入結算時間！");
+            document.getElementById('endTime').focus();
+            return;
+        }
 
         if (startTime && endTime && startTime === endTime) {
             alert("❌ 開始時間與結算時間不能相同！");
@@ -548,22 +554,22 @@
         };
 
         let startMin = parseMinutes(startTime);
-        let endMin = parseMinutes(endTime);
+        let endMin = endTime ? parseMinutes(endTime) : null;
 
         if (shift === '白班') {
-            if (startMin < 480 || startMin > 1020 || endMin < 480 || endMin > 1020) {
-                alert("❌ 【白班】的開始與結束時間必須在 08:00 ~ 17:00 之間！");
+            if (startMin < 480 || startMin > 1020 || (endMin !== null && (endMin < 480 || endMin > 1020))) {
+                alert("❌ 【白班】的時間範圍必須在 08:00 ~ 17:00 之間！");
                 return;
             }
         } else if (shift === '中班') {
             let adjStartMin = startMin;
-            let adjEndMin = endMin;
+            let adjEndMin = endMin !== null ? endMin : null;
             
             if (adjStartMin < 480) adjStartMin += 1440; 
-            if (adjEndMin < 480) adjEndMin += 1440;     
+            if (adjEndMin !== null && adjEndMin < 480) adjEndMin += 1440;     
             
-            if (adjStartMin < 1020 || adjEndMin > 1710 || adjStartMin > adjEndMin) {
-                alert("❌ 【中班】的開始與結束時間必須在 17:00 ~ 03:30 跨夜範圍內！");
+            if (adjStartMin < 1020 || (adjEndMin !== null && (adjEndMin > 1710 || adjStartMin > adjEndMin))) {
+                alert("❌ 【中班】的時間範圍必須在 17:00 ~ 03:30 跨夜範圍內！");
                 return;
             }
         }
@@ -586,7 +592,6 @@
             }
         }
 
-        const qty = Number(document.getElementById('qty').value);
         const unitSeconds = Number(document.getElementById('unitSeconds').value);
 
         if (qty < 0 || unitSeconds < 0) {
