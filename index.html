@@ -360,7 +360,7 @@
         }
     }
 
-    // 表單送出（含支援跨夜的時間序列防呆驗證）
+   // 表單送出（強化版時間序列與跨夜防呆驗證）
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -372,23 +372,40 @@
         const startTime = document.getElementById('startTime').value;
         const endTime = document.getElementById('endTime').value;
 
-        // 💡 支援跨夜的時間序列防呆驗證
+        if (startTime && endTime && startTime === endTime) {
+            alert("❌ 開始時間與結算時間不能相同！");
+            return;
+        }
+
+        // 💡 嚴格的時間序列防呆驗證（比對上一筆結算時間）
         if (lastEndTime && startTime) {
             let parseMinutes = (timeStr) => {
                 let parts = timeStr.split(':');
                 let h = parseInt(parts[0], 10);
                 let m = parseInt(parts[1], 10);
-                // 若時間在凌晨 00:00 到 08:00 之間，視為跨夜延續（加 24 小時計算）
-                if (h < 8) h += 24; 
                 return h * 60 + m;
             };
 
             let startMin = parseMinutes(startTime);
             let lastEndMin = parseMinutes(lastEndTime);
 
-            if (startMin < lastEndMin) {
+            // 判斷是否為跨夜狀況（上一筆結算時間在凌晨 00:00~08:00 之間，或是本次開始時間跨到隔天）
+            let isLastNight = (lastEndMin < 480); // 08:00以前
+            let isThisNight = (startMin < 480);
+
+            let adjustedStartMin = startMin;
+            let adjustedLastEndMin = lastEndMin;
+
+            // 如果上一筆是跨夜或本次是跨夜，進行微調讓時間軸連續
+            if (!isLastNight && isThisNight) {
+                // 上一筆正常（如 14:00），本次是隔天凌晨（如 01:00），視為跨日（+24小時）
+                adjustedStartMin += 1440;
+            }
+
+            // 核心攔截：本次開始時間絕對不能早於上一筆結算時間！
+            if (adjustedStartMin < adjustedLastEndMin) {
                 alert(`❌ 該機台上一筆報工的結算時間為 ${lastEndTime}，本次開始時間 (${startTime}) 不得早於上一筆結算時間！`);
-                return;
+                return; // 🛑 徹底阻擋送出
             }
         }
 
@@ -445,7 +462,7 @@
             document.getElementById('loading').style.display = 'none';
             alert(data.message);
             if (data.success) {
-                lastEndTime = endTime; // 更新上一筆結算時間，供連續報工比對
+                lastEndTime = endTime; // 更新上一筆結算時間
 
                 document.getElementById('qty').value = '';
                 document.getElementById('unitSeconds').value = '';
