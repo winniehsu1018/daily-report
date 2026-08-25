@@ -141,7 +141,7 @@
     let allMachines = [];
     let allParts = [];
     let userProfile = {};
-    let lastEndTime = ""; // 👈 記錄上一筆的結算時間
+    let lastEndTime = ""; // 記錄上一筆的結算時間
 
     window.onload = function() {
         const today = new Date();
@@ -238,7 +238,7 @@
         });
     }
 
-    // 自動帶入上一筆資料，並同時抓取上一筆的結算時間
+    // 自動帶入上一筆資料（包含結算時間）
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -250,20 +250,19 @@
             .then(res => res.json())
             .then(data => {
                 const hintEl = document.getElementById('autoHint');
-                document.getElementById('startTime').value = ''; // 保持開始時間空白
+                document.getElementById('startTime').value = ''; // 開始時間保持空白
 
                 if (data.success) {
                     if (data.part) document.getElementById('part').value = data.part;
                     if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
                     if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
                     
-                    // 💡 紀錄上一筆的結算時間（例如 "14:00"）
-                    lastEndTime = data.endTime || "";
+                    lastEndTime = data.endTime || ""; // 記錄上一筆結算時間
                     
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
                 } else {
-                    lastEndTime = ""; // 如果是第一筆，則沒有限制
+                    lastEndTime = "";
                 }
             })
             .catch(err => {
@@ -361,7 +360,7 @@
         }
     }
 
-    // 表單送出（含開始時間不可早於上一筆結算時間的驗證）
+    // 表單送出（含支援跨夜的時間序列防呆驗證）
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -373,17 +372,24 @@
         const startTime = document.getElementById('startTime').value;
         const endTime = document.getElementById('endTime').value;
 
-        // 💡 時間前後邏輯防呆檢查
+        // 💡 支援跨夜的時間序列防呆驗證
         if (lastEndTime && startTime) {
-            if (startTime < lastEndTime) {
+            let parseMinutes = (timeStr) => {
+                let parts = timeStr.split(':');
+                let h = parseInt(parts[0], 10);
+                let m = parseInt(parts[1], 10);
+                // 若時間在凌晨 00:00 到 08:00 之間，視為跨夜延續（加 24 小時計算）
+                if (h < 8) h += 24; 
+                return h * 60 + m;
+            };
+
+            let startMin = parseMinutes(startTime);
+            let lastEndMin = parseMinutes(lastEndTime);
+
+            if (startMin < lastEndMin) {
                 alert(`❌ 該機台上一筆報工的結算時間為 ${lastEndTime}，本次開始時間 (${startTime}) 不得早於上一筆結算時間！`);
                 return;
             }
-        }
-
-        if (startTime && endTime && startTime >= endTime) {
-            alert("❌ 結算時間必須晚於開始時間！");
-            return;
         }
 
         const qty = Number(document.getElementById('qty').value);
@@ -439,8 +445,7 @@
             document.getElementById('loading').style.display = 'none';
             alert(data.message);
             if (data.success) {
-                // 送出成功後更新 lastEndTime 為剛剛填寫的結算時間，方便連續報下一筆
-                lastEndTime = endTime;
+                lastEndTime = endTime; // 更新上一筆結算時間，供連續報工比對
 
                 document.getElementById('qty').value = '';
                 document.getElementById('unitSeconds').value = '';
