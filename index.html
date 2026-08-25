@@ -22,6 +22,7 @@
         .time-hint { font-size: 12px; color: #888; margin-top: 3px; }
         #userInfo { font-size: 13px; color: #666; text-align: right; margin-bottom: 15px; }
         .invalid-box { background: #f9f9f9; padding: 12px; border-radius: 5px; border: 1px dashed #ccc; margin-bottom: 10px; }
+        .auto-hint { font-size: 12px; color: #28a745; margin-top: 3px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -34,13 +35,13 @@
         <!-- 日期 -->
         <div class="form-group">
             <label for="date">日期 (MMDD)：</label>
-            <input type="text" id="date" required placeholder="例如: 0824">
+            <input type="text" id="date" required placeholder="例如: 0824" onchange="fetchLastRecord()">
         </div>
 
         <!-- 班別 -->
         <div class="form-group">
             <label for="shift">班別：</label>
-            <select id="shift" required onchange="handleShiftChange()">
+            <select id="shift" required onchange="handleShiftChange(); fetchLastRecord();">
                 <option value="白班">白班</option>
                 <option value="中班">中班</option>
             </select>
@@ -51,6 +52,7 @@
             <label for="machine">機台編號：</label>
             <input type="text" id="machine" required placeholder="輸入關鍵字搜尋機台..." autocomplete="off">
             <div id="machineList" class="dropdown-list"></div>
+            <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料</div>
         </div>
 
         <!-- 品名規格 (模糊搜尋) -->
@@ -145,7 +147,10 @@
 </div>
 
 <script>
+    // ⚠️ 請填入您的 Google Apps Script 部署網址 (/exec)
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
+    
+    // ⚠️ 請換成你在 LINE Developers 後台建立的 LIFF ID
     const LIFF_ID = "2011225260-9FkqdTAH"; 
 
     let allMachines = [];
@@ -194,6 +199,32 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
+    // 自動帶入上一筆機台紀錄
+    function fetchLastRecord() {
+        const date = document.getElementById('date').value;
+        const shift = document.getElementById('shift').value;
+        const machine = document.getElementById('machine').value.trim();
+
+        if (!date || !shift || !machine) return;
+
+        fetch(`${GAS_WEB_APP_URL}?action=getLastRecord&date=${date}&shift=${shift}&machine=${encodeURIComponent(machine)}`)
+            .then(res => res.json())
+            .then(data => {
+                const hintEl = document.getElementById('autoHint');
+                if (data.success) {
+                    if (data.part) document.getElementById('part').value = data.part;
+                    if (data.startTime) document.getElementById('startTime').value = data.startTime;
+                    if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
+                    if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
+                    
+                    hintEl.style.display = 'block';
+                    setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
+                }
+            })
+            .catch(err => console.error("無法取得上一筆紀錄", err));
+    }
+
+    // 模糊搜尋機台
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     machineInput.addEventListener('input', function() {
@@ -210,6 +241,7 @@
                 div.onclick = function() {
                     machineInput.value = item;
                     machineList.style.display = 'none';
+                    fetchLastRecord(); // 選好機台自動帶入
                 };
                 machineList.appendChild(div);
             });
@@ -218,6 +250,13 @@
         }
     });
 
+    // 手動輸入機台移開時也觸發自動帶入
+    machineInput.addEventListener('blur', function() {
+        setTimeout(() => { machineList.style.display = 'none'; }, 200);
+        fetchLastRecord();
+    });
+
+    // 模糊搜尋品名
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     partInput.addEventListener('input', function() {
