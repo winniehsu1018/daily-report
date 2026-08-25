@@ -56,7 +56,7 @@
             <label for="machine">機台編號：</label>
             <input type="text" id="machine" required placeholder="輸入關鍵字搜尋機台..." autocomplete="off">
             <div id="machineList" class="dropdown-list"></div>
-            <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料（開始時間保持空白）</div>
+            <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料</div>
         </div>
 
         <!-- 品名規格 (模糊搜尋) -->
@@ -141,6 +141,7 @@
     let allMachines = [];
     let allParts = [];
     let userProfile = {};
+    let lastEndTime = ""; // 👈 記錄上一筆的結算時間
 
     window.onload = function() {
         const today = new Date();
@@ -237,7 +238,7 @@
         });
     }
 
-    // 自動帶入上一筆機台紀錄（開始時間保持空白）
+    // 自動帶入上一筆資料，並同時抓取上一筆的結算時間
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -249,17 +250,26 @@
             .then(res => res.json())
             .then(data => {
                 const hintEl = document.getElementById('autoHint');
+                document.getElementById('startTime').value = ''; // 保持開始時間空白
+
                 if (data.success) {
                     if (data.part) document.getElementById('part').value = data.part;
-                    // ⚠️ 注意：此處刻意不帶入 startTime，讓開始時間維持空白
                     if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
                     if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
                     
+                    // 💡 紀錄上一筆的結算時間（例如 "14:00"）
+                    lastEndTime = data.endTime || "";
+                    
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
+                } else {
+                    lastEndTime = ""; // 如果是第一筆，則沒有限制
                 }
             })
-            .catch(err => console.error("無法取得上一筆紀錄", err));
+            .catch(err => {
+                console.error("無法取得上一筆紀錄", err);
+                lastEndTime = "";
+            });
     }
 
     const machineInput = document.getElementById('machine');
@@ -351,11 +361,28 @@
         }
     }
 
+    // 表單送出（含開始時間不可早於上一筆結算時間的驗證）
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
         if (!userProfile.userId) {
             alert("⚠️ 尚未取得 LINE 身分識別，請重新整理頁面！");
+            return;
+        }
+
+        const startTime = document.getElementById('startTime').value;
+        const endTime = document.getElementById('endTime').value;
+
+        // 💡 時間前後邏輯防呆檢查
+        if (lastEndTime && startTime) {
+            if (startTime < lastEndTime) {
+                alert(`❌ 該機台上一筆報工的結算時間為 ${lastEndTime}，本次開始時間 (${startTime}) 不得早於上一筆結算時間！`);
+                return;
+            }
+        }
+
+        if (startTime && endTime && startTime >= endTime) {
+            alert("❌ 結算時間必須晚於開始時間！");
             return;
         }
 
@@ -394,8 +421,8 @@
             shift: document.getElementById('shift').value,
             machine: machineInput.value,
             part: partInput.value,
-            startTime: document.getElementById('startTime').value,
-            endTime: document.getElementById('endTime').value,
+            startTime: startTime,
+            endTime: endTime,
             workingHours: document.getElementById('workingHours').value,
             qty: qty,
             unitSeconds: unitSeconds,
@@ -412,9 +439,12 @@
             document.getElementById('loading').style.display = 'none';
             alert(data.message);
             if (data.success) {
+                // 送出成功後更新 lastEndTime 為剛剛填寫的結算時間，方便連續報下一筆
+                lastEndTime = endTime;
+
                 document.getElementById('qty').value = '';
                 document.getElementById('unitSeconds').value = '';
-                document.getElementById('startTime').value = ''; // 提交成功後也清空開始時間方便下一筆
+                document.getElementById('startTime').value = ''; 
                 document.getElementById('endTime').value = '';
                 document.getElementById('remark').value = '';
                 machineInput.value = '';
