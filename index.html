@@ -15,7 +15,7 @@
         input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
         .dropdown-list { position: absolute; width: 100%; max-height: 150px; overflow-y: auto; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; display: none; border-radius: 0 0 5px 5px; }
         .dropdown-item { padding: 10px; cursor: pointer; }
-        .dropdown-item:hover, .dropdown-item.active { background-color: #e0e0e0; } /* 💡 支援滑鼠 hover 與鍵盤 active 樣式 */
+        .dropdown-item:hover, .dropdown-item.active { background-color: #e0e0e0; }
         button { width: 100%; background: #007bff; color: white; border: none; padding: 12px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
         button:hover { background: #0056b3; }
         #loading { display: none; text-align: center; color: #007bff; font-weight: bold; margin-top: 10px; }
@@ -51,15 +51,15 @@
             </select>
         </div>
 
-        <!-- 機台編號 (模糊搜尋 + 鍵盤選取) -->
+        <!-- 機台編號 (智慧模糊搜尋：可直接打 20011 略過橫線) -->
         <div class="form-group">
             <label for="machine">機台編號：</label>
-            <input type="text" id="machine" required placeholder="輸入關鍵字搜尋機台..." autocomplete="off">
+            <input type="text" id="machine" required placeholder="輸入關鍵字 (如 20011 或 011)..." autocomplete="off">
             <div id="machineList" class="dropdown-list"></div>
             <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料</div>
         </div>
 
-        <!-- 品名規格 (模糊搜尋 + 鍵盤選取) -->
+        <!-- 品名規格 (智慧模糊搜尋) -->
         <div class="form-group">
             <label for="part">品名規格 / 加工工序：</label>
             <input type="text" id="part" required placeholder="輸入關鍵字搜尋品名..." autocomplete="off">
@@ -270,17 +270,24 @@
             });
     }
 
-    // 💡 機台編號：模糊搜尋 + 鍵盤上下選擇與 Enter 確認
+    // 💡 機台編號：支援忽略橫線/空格搜尋 (例如打 20011 也能找到 YCL-20-011)
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
 
     machineInput.addEventListener('input', function() {
-        const val = this.value.toLowerCase();
+        const rawVal = this.value.toLowerCase();
+        const val = rawVal.replace(/[\-\s]/g, ''); 
+        
         machineList.innerHTML = '';
         machineCurrentFocus = -1;
         if (!val) { machineList.style.display = 'none'; return; }
-        const filtered = allMachines.filter(m => m.toLowerCase().includes(val));
+        
+        const filtered = allMachines.filter(m => {
+            const cleanM = m.toLowerCase().replace(/[\-\s]/g, '');
+            return cleanM.includes(val);
+        });
+
         if (filtered.length > 0) {
             machineList.style.display = 'block';
             filtered.forEach(item => {
@@ -340,17 +347,24 @@
         fetchLastRecord();
     });
 
-    // 💡 品名規格：模糊搜尋 + 鍵盤上下選擇與 Enter 確認
+    // 💡 品名規格：支援忽略橫線/空格搜尋
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
 
     partInput.addEventListener('input', function() {
-        const val = this.value.toLowerCase();
+        const rawVal = this.value.toLowerCase();
+        const val = rawVal.replace(/[\-\s]/g, '');
+        
         partList.innerHTML = '';
         partCurrentFocus = -1;
         if (!val) { partList.style.display = 'none'; return; }
-        const filtered = allParts.filter(p => p.toLowerCase().includes(val));
+        
+        const filtered = allParts.filter(p => {
+            const cleanP = p.toLowerCase().replace(/[\-\s]/g, '');
+            return cleanP.includes(val);
+        });
+
         if (filtered.length > 0) {
             partList.style.display = 'block';
             filtered.forEach(item => {
