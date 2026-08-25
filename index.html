@@ -136,7 +136,7 @@
 
 <script>
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
-    const LIFF_ID = "你的-LIFF-ID"; 
+    const LIFF_ID = "2011225260-9FkqdTAH"; 
 
     let allMachines = [];
     let allParts = [];
@@ -188,7 +188,7 @@
     function addInvalidBox() {
         const container = document.getElementById('invalidContainer');
         const count = container.getElementsByClassName('invalid-box').length;
-        if (count >= 4) { // 💡 上限改為 4 項
+        if (count >= 4) {
             alert("⚠️ 最多只能新增 4 組無效工時項目！");
             return;
         }
@@ -218,7 +218,7 @@
         `;
         container.appendChild(div);
 
-        if (container.getElementsByClassName('invalid-box').length >= 4) { // 💡 達到 4 項後隱藏按鈕
+        if (container.getElementsByClassName('invalid-box').length >= 4) {
             document.getElementById('addInvalidBtn').style.display = 'none';
         }
     }
@@ -540,18 +540,36 @@
         const invalidBoxes = document.querySelectorAll('.invalid-box');
         let invalidItems = [];
         let hasNegativeInvalid = false;
+        let hasInvalidConfigError = false;
 
         invalidBoxes.forEach(box => {
             let type = box.querySelector('.invalidType').value;
-            let min = Number(box.querySelector('.invalidMin').value) || 0;
+            let minInput = box.querySelector('.invalidMin').value.trim();
+            let min = minInput !== "" ? Number(minInput) : 0;
+
             if (min < 0) hasNegativeInvalid = true;
-            if (type && min > 0) {
+
+            // 檢查是否選了項目卻沒填分鐘數，或是選了「無」卻填了分鐘數
+            if (type !== "" && type !== "無" && (minInput === "" || min <= 0)) {
+                hasInvalidConfigError = true;
+            }
+            if ((!type || type === "無") && min > 0) {
+                hasInvalidConfigError = true;
+            }
+
+            // 只收集真正有效的項目
+            if (type && type !== "無" && min > 0) {
                 invalidItems.push({ type: type, min: min });
             }
         });
 
         if (hasNegativeInvalid) {
             alert("❌ 無效工時分鐘數不可輸入負數！");
+            return;
+        }
+
+        if (hasInvalidConfigError) {
+            alert("❌ 無效工時填寫有誤！若要填寫無效工時，請確實選擇項目並填入大於 0 的分鐘數；若不填寫請將項目設為「無」且分鐘數留空。");
             return;
         }
 
