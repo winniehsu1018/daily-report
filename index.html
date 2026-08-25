@@ -15,7 +15,7 @@
         input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
         .dropdown-list { position: absolute; width: 100%; max-height: 150px; overflow-y: auto; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; display: none; border-radius: 0 0 5px 5px; }
         .dropdown-item { padding: 10px; cursor: pointer; }
-        .dropdown-item:hover { background-color: #f0f0f0; }
+        .dropdown-item:hover, .dropdown-item.active { background-color: #e0e0e0; } /* 💡 支援滑鼠 hover 與鍵盤 active 樣式 */
         button { width: 100%; background: #007bff; color: white; border: none; padding: 12px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
         button:hover { background: #0056b3; }
         #loading { display: none; text-align: center; color: #007bff; font-weight: bold; margin-top: 10px; }
@@ -51,7 +51,7 @@
             </select>
         </div>
 
-        <!-- 機台編號 (模糊搜尋) -->
+        <!-- 機台編號 (模糊搜尋 + 鍵盤選取) -->
         <div class="form-group">
             <label for="machine">機台編號：</label>
             <input type="text" id="machine" required placeholder="輸入關鍵字搜尋機台..." autocomplete="off">
@@ -59,7 +59,7 @@
             <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料</div>
         </div>
 
-        <!-- 品名規格 (模糊搜尋) -->
+        <!-- 品名規格 (模糊搜尋 + 鍵盤選取) -->
         <div class="form-group">
             <label for="part">品名規格 / 加工工序：</label>
             <input type="text" id="part" required placeholder="輸入關鍵字搜尋品名..." autocomplete="off">
@@ -141,7 +141,7 @@
     let allMachines = [];
     let allParts = [];
     let userProfile = {};
-    let lastEndTime = ""; // 記錄上一筆的結算時間
+    let lastEndTime = ""; 
 
     window.onload = function() {
         const today = new Date();
@@ -238,7 +238,6 @@
         });
     }
 
-    // 自動帶入上一筆資料（包含結算時間）
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -250,14 +249,14 @@
             .then(res => res.json())
             .then(data => {
                 const hintEl = document.getElementById('autoHint');
-                document.getElementById('startTime').value = ''; // 開始時間保持空白
+                document.getElementById('startTime').value = ''; 
 
                 if (data.success) {
                     if (data.part) document.getElementById('part').value = data.part;
                     if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
                     if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
                     
-                    lastEndTime = data.endTime || ""; // 記錄上一筆結算時間
+                    lastEndTime = data.endTime || ""; 
                     
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
@@ -271,11 +270,15 @@
             });
     }
 
+    // 💡 機台編號：模糊搜尋 + 鍵盤上下選擇與 Enter 確認
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
+    let machineCurrentFocus = -1;
+
     machineInput.addEventListener('input', function() {
         const val = this.value.toLowerCase();
         machineList.innerHTML = '';
+        machineCurrentFocus = -1;
         if (!val) { machineList.style.display = 'none'; return; }
         const filtered = allMachines.filter(m => m.toLowerCase().includes(val));
         if (filtered.length > 0) {
@@ -296,16 +299,56 @@
         }
     });
 
+    machineInput.addEventListener('keydown', function(e) {
+        let items = machineList.getElementsByClassName('dropdown-item');
+        if (!items || items.length === 0) return;
+
+        if (e.key === "ArrowDown") {
+            machineCurrentFocus++;
+            addActive(items, machineCurrentFocus, 'machine');
+        } else if (e.key === "ArrowUp") {
+            machineCurrentFocus--;
+            addActive(items, machineCurrentFocus, 'machine');
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
+                items[machineCurrentFocus].click();
+            }
+        }
+    });
+
+    function addActive(items, index, type) {
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+            items[i].classList.remove('active');
+        }
+        if (type === 'machine') {
+            if (index >= items.length) machineCurrentFocus = 0;
+            if (index < 0) machineCurrentFocus = items.length - 1;
+            items[machineCurrentFocus].classList.add('active');
+            items[machineCurrentFocus].scrollIntoView({ block: 'nearest' });
+        } else if (type === 'part') {
+            if (index >= items.length) partCurrentFocus = 0;
+            if (index < 0) partCurrentFocus = items.length - 1;
+            items[partCurrentFocus].classList.add('active');
+            items[partCurrentFocus].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
     machineInput.addEventListener('blur', function() {
         setTimeout(() => { machineList.style.display = 'none'; }, 200);
         fetchLastRecord();
     });
 
+    // 💡 品名規格：模糊搜尋 + 鍵盤上下選擇與 Enter 確認
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
+    let partCurrentFocus = -1;
+
     partInput.addEventListener('input', function() {
         const val = this.value.toLowerCase();
         partList.innerHTML = '';
+        partCurrentFocus = -1;
         if (!val) { partList.style.display = 'none'; return; }
         const filtered = allParts.filter(p => p.toLowerCase().includes(val));
         if (filtered.length > 0) {
@@ -323,6 +366,28 @@
         } else {
             partList.style.display = 'none';
         }
+    });
+
+    partInput.addEventListener('keydown', function(e) {
+        let items = partList.getElementsByClassName('dropdown-item');
+        if (!items || items.length === 0) return;
+
+        if (e.key === "ArrowDown") {
+            partCurrentFocus++;
+            addActive(items, partCurrentFocus, 'part');
+        } else if (e.key === "ArrowUp") {
+            partCurrentFocus--;
+            addActive(items, partCurrentFocus, 'part');
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (partCurrentFocus > -1 && items[partCurrentFocus]) {
+                items[partCurrentFocus].click();
+            }
+        }
+    });
+
+    partInput.addEventListener('blur', function() {
+        setTimeout(() => { partList.style.display = 'none'; }, 200);
     });
 
     document.addEventListener('click', function(e) {
@@ -360,7 +425,7 @@
         }
     }
 
-   // 表單送出（強化版時間序列與跨夜防呆驗證）
+    // 表單送出（含跨夜防呆驗證）
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -377,7 +442,6 @@
             return;
         }
 
-        // 💡 嚴格的時間序列防呆驗證（比對上一筆結算時間）
         if (lastEndTime && startTime) {
             let parseMinutes = (timeStr) => {
                 let parts = timeStr.split(':');
@@ -389,23 +453,19 @@
             let startMin = parseMinutes(startTime);
             let lastEndMin = parseMinutes(lastEndTime);
 
-            // 判斷是否為跨夜狀況（上一筆結算時間在凌晨 00:00~08:00 之間，或是本次開始時間跨到隔天）
-            let isLastNight = (lastEndMin < 480); // 08:00以前
+            let isLastNight = (lastEndMin < 480); 
             let isThisNight = (startMin < 480);
 
             let adjustedStartMin = startMin;
             let adjustedLastEndMin = lastEndMin;
 
-            // 如果上一筆是跨夜或本次是跨夜，進行微調讓時間軸連續
             if (!isLastNight && isThisNight) {
-                // 上一筆正常（如 14:00），本次是隔天凌晨（如 01:00），視為跨日（+24小時）
                 adjustedStartMin += 1440;
             }
 
-            // 核心攔截：本次開始時間絕對不能早於上一筆結算時間！
             if (adjustedStartMin < adjustedLastEndMin) {
                 alert(`❌ 該機台上一筆報工的結算時間為 ${lastEndTime}，本次開始時間 (${startTime}) 不得早於上一筆結算時間！`);
-                return; // 🛑 徹底阻擋送出
+                return;
             }
         }
 
@@ -462,7 +522,7 @@
             document.getElementById('loading').style.display = 'none';
             alert(data.message);
             if (data.success) {
-                lastEndTime = endTime; // 更新上一筆結算時間
+                lastEndTime = endTime; 
 
                 document.getElementById('qty').value = '';
                 document.getElementById('unitSeconds').value = '';
