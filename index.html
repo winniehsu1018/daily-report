@@ -46,12 +46,12 @@
         <div class="form-group">
             <label for="shift">班別：</label>
             <select id="shift" required onchange="handleShiftChange(); fetchLastRecord();">
-                <option value="白班">白班</option>
-                <option value="中班">中班</option>
+                <option value="白班">白班 (08:00 - 17:00)</option>
+                <option value="中班">中班 (17:00 - 03:30)</option>
             </select>
         </div>
 
-        <!-- 機台編號 (智慧模糊搜尋：可直接打 20011 略過橫線) -->
+        <!-- 機台編號 -->
         <div class="form-group">
             <label for="machine">機台編號：</label>
             <input type="text" id="machine" required placeholder="輸入關鍵字 (如 20011 或 011)..." autocomplete="off">
@@ -59,7 +59,7 @@
             <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料</div>
         </div>
 
-        <!-- 品名規格 (智慧模糊搜尋) -->
+        <!-- 品名規格 -->
         <div class="form-group">
             <label for="part">品名規格 / 加工工序：</label>
             <input type="text" id="part" required placeholder="輸入關鍵字搜尋品名..." autocomplete="off">
@@ -270,7 +270,6 @@
             });
     }
 
-    // 💡 機台編號：支援忽略橫線/空格搜尋 (例如打 20011 也能找到 YCL-20-011)
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
@@ -347,7 +346,6 @@
         fetchLastRecord();
     });
 
-    // 💡 品名規格：支援忽略橫線/空格搜尋
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
@@ -439,7 +437,7 @@
         }
     }
 
-    // 表單送出（含跨夜防呆驗證）
+    // 表單送出（含班別時間範圍防呆與跨夜連續性驗證）
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -448,6 +446,7 @@
             return;
         }
 
+        const shift = document.getElementById('shift').value;
         const startTime = document.getElementById('startTime').value;
         const endTime = document.getElementById('endTime').value;
 
@@ -456,17 +455,45 @@
             return;
         }
 
+        // 💡 時間轉換為分鐘數的輔助函式
+        let parseMinutes = (timeStr) => {
+            let parts = timeStr.split(':');
+            let h = parseInt(parts[0], 10);
+            let m = parseInt(parts[1], 10);
+            return h * 60 + m;
+        };
+
+        let startMin = parseMinutes(startTime);
+        let endMin = parseMinutes(endTime);
+
+        // 💡 1. 班別時間範圍防呆驗證
+        if (shift === '白班') {
+            // 白班範圍：08:00 (480分) ~ 17:00 (1020分)
+            // 允許前後稍微彈性一點點或嚴格限制在 08:00 ~ 17:00
+            if (startMin < 480 || startMin > 1020 || endMin < 480 || endMin > 1020) {
+                alert("❌ 【白班】的開始與結束時間必須在 08:00 ~ 17:00 之間！");
+                return;
+            }
+        } else if (shift === '中班') {
+            // 中班範圍：17:00 (1020分) 開始，跨夜至隔天 03:30 (210分，即 3.5小時+24小時 = 270分 或 03:30 換算)
+            // 為了支援跨夜，中班的時間若在 00:00 ~ 08:00 之間，視為跨夜（+1440分鐘）
+            let adjStartMin = startMin;
+            let adjEndMin = endMin;
+            
+            if (adjStartMin < 480) adjStartMin += 1440; // 凌晨視為隔天
+            if (adjEndMin < 480) adjEndMin += 1440;     // 凌晨視為隔天
+            
+            // 中班起點 17:00 = 1020分，終點 03:30 = 3小時30分 + 24小時 = 270 + 1440 = 1710分
+            // 也就是中班有效區間大約是 1020分 到 1710分 之間
+            if (adjStartMin < 1020 || adjEndMin > 1710 || adjStartMin > adjEndMin) {
+                alert("❌ 【中班】的開始與結束時間必須在 17:00 ~ 03:30 跨夜範圍內！");
+                return;
+            }
+        }
+
+        // 💡 2. 機台連續報工的時間序列防呆（不可早於上一筆結算時間）
         if (lastEndTime && startTime) {
-            let parseMinutes = (timeStr) => {
-                let parts = timeStr.split(':');
-                let h = parseInt(parts[0], 10);
-                let m = parseInt(parts[1], 10);
-                return h * 60 + m;
-            };
-
-            let startMin = parseMinutes(startTime);
             let lastEndMin = parseMinutes(lastEndTime);
-
             let isLastNight = (lastEndMin < 480); 
             let isThisNight = (startMin < 480);
 
@@ -515,7 +542,7 @@
             userId: userProfile.userId,
             userName: userProfile.displayName,
             date: document.getElementById('date').value,
-            shift: document.getElementById('shift').value,
+            shift: shift,
             machine: machineInput.value,
             part: partInput.value,
             startTime: startTime,
