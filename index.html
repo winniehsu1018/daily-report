@@ -35,7 +35,8 @@
     <h2>CNC 生產日報回報</h2>
     <div id="userInfo">正在取得 LINE 身分中...</div>
 
-    <form id="reportForm">
+    <!-- 💡 加上 onkeydown="return event.key !== 'Enter';" 防止在任意欄位按 Enter 誤觸發送出 -->
+    <form id="reportForm" onkeydown="if(event.key === 'Enter' && event.target.tagName !== 'BUTTON') { event.preventDefault(); }">
         <!-- 日期 -->
         <div class="form-group">
             <label for="date">日期 (MMDD)：</label>
@@ -93,10 +94,10 @@
             <input type="number" id="qty" min="0" required placeholder="請輸入完成數量 (若無產出可填 0)" onkeydown="jumpToNext(event, 'unitSeconds')">
         </div>
 
-        <!-- N 欄單件秒數 -->
+        <!-- N 欄單件秒數 (按下 Enter 或手機完成鍵後，跳到備註欄或讓作業員往下滑填無效工時) -->
         <div class="form-group">
             <label for="unitSeconds">生產回報單件工時 (S) 秒數 (無產出可不填)：</label>
-            <input type="number" step="0.01" id="unitSeconds" min="0" placeholder="請輸入單件秒數 (例: 8.57)">
+            <input type="number" step="0.01" id="unitSeconds" min="0" placeholder="請輸入單件秒數 (例: 8.57)" onkeydown="jumpToNext(event, 'remark')">
         </div>
 
         <!-- 動態無效工時區塊 (最多 4 項) -->
@@ -549,7 +550,6 @@
 
             if (min < 0) hasNegativeInvalid = true;
 
-            // 檢查是否選了項目卻沒填分鐘數，或是選了「無」卻填了分鐘數
             if (type !== "" && type !== "無" && (minInput === "" || min <= 0)) {
                 hasInvalidConfigError = true;
             }
@@ -557,7 +557,6 @@
                 hasInvalidConfigError = true;
             }
 
-            // 只收集真正有效的項目
             if (type && type !== "無" && min > 0) {
                 invalidItems.push({ type: type, min: min });
             }
