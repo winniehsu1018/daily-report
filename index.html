@@ -93,10 +93,10 @@
             <input type="number" id="qty" min="0" required placeholder="請輸入完成數量 (若無產出可填 0)" onkeydown="jumpToNext(event, 'unitSeconds')">
         </div>
 
-        <!-- N 欄單件秒數 -->
+        <!-- N 欄單件秒數 (改為選填，數量 > 0 時才必填) -->
         <div class="form-group">
-            <label for="unitSeconds">生產回報單件工時 (S) 秒數：</label>
-            <input type="number" step="0.01" id="unitSeconds" min="0" required placeholder="請輸入單件秒數 (例: 8.57)">
+            <label for="unitSeconds">生產回報單件工時 (S) 秒數 (無產出可不填)：</label>
+            <input type="number" step="0.01" id="unitSeconds" min="0" placeholder="請輸入單件秒數 (例: 8.57)">
         </div>
 
         <!-- 動態無效工時區塊 -->
@@ -533,6 +533,10 @@
         const startTime = document.getElementById('startTime').value;
         const endTime = document.getElementById('endTime').value.trim();
         const qty = Number(document.getElementById('qty').value) || 0;
+        
+        // 💡 取得單件秒數（若沒填則預設為 0）
+        const unitSecondsInput = document.getElementById('unitSeconds').value.trim();
+        const unitSeconds = unitSecondsInput !== "" ? Number(unitSecondsInput) : 0;
 
         const invalidBoxes = document.querySelectorAll('.invalid-box');
         let invalidItems = [];
@@ -552,7 +556,8 @@
             return;
         }
 
-        // 💡 智慧防呆判斷：有填數量 (>0) 或有填寫無效工時，結算時間即為必填
+        // 💡 防呆判斷：
+        // 1. 若有填寫數量 (>0) 或有填寫無效工時，結算時間為必填
         if (qty > 0 && !endTime) {
             alert("❌ 當您填寫了本次完成數量時，結算時間為必填欄位！");
             document.getElementById('endTime').focus();
@@ -562,6 +567,13 @@
         if (qty === 0 && invalidItems.length > 0 && !endTime) {
             alert("❌ 您回報了無效工時但數量為 0，請填寫結算時間以記錄區間！");
             document.getElementById('endTime').focus();
+            return;
+        }
+
+        // 2. 若數量 > 0，單件秒數為必填且不可小於 0
+        if (qty > 0 && (unitSecondsInput === "" || unitSeconds < 0)) {
+            alert("❌ 當有生產數量時，單件工時秒數為必填且不可為負數！");
+            document.getElementById('unitSeconds').focus();
             return;
         }
 
@@ -614,13 +626,6 @@
                 alert(`❌ 該機台上一筆報工的結算時間為 ${lastEndTime}，本次開始時間 (${startTime}) 不得早於上一筆結算時間！`);
                 return;
             }
-        }
-
-        const unitSeconds = Number(document.getElementById('unitSeconds').value);
-
-        if (qty < 0 || unitSeconds < 0) {
-            alert("❌ 數量與單件秒數皆不可輸入負數！");
-            return;
         }
 
         document.getElementById('loading').style.display = 'block';
