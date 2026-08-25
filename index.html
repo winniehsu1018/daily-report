@@ -83,19 +83,19 @@
             </select>
         </div>
 
-        <!-- 完成數量 -->
+        <!-- 完成數量 (加上 min="0") -->
         <div class="form-group">
             <label for="qty">本次完成數量 (pcs)：</label>
-            <input type="number" id="qty" required placeholder="請輸入完成數量">
+            <input type="number" id="qty" min="0" required placeholder="請輸入完成數量">
         </div>
 
-        <!-- N 欄單件秒數 -->
+        <!-- N 欄單件秒數 (加上 min="0") -->
         <div class="form-group">
             <label for="unitSeconds">生產回報單件工時 (S) 秒數：</label>
-            <input type="number" step="0.01" id="unitSeconds" required placeholder="請輸入單件秒數 (例: 8.57)">
+            <input type="number" step="0.01" id="unitSeconds" min="0" required placeholder="請輸入單件秒數 (例: 8.57)">
         </div>
 
-        <!-- 無效工時項目 1 -->
+        <!-- 無效工時項目 1 (加上 min="0") -->
         <div class="invalid-box">
             <label>無效工時項目 1 (選填)：</label>
             <div class="form-group" style="margin-bottom: 8px;">
@@ -111,11 +111,11 @@
                 </select>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
-                <input type="number" id="invalidMin1" placeholder="請輸入項目 1 分鐘數">
+                <input type="number" id="invalidMin1" min="0" placeholder="請輸入項目 1 分鐘數">
             </div>
         </div>
 
-        <!-- 無效工時項目 2 -->
+        <!-- 無效工時項目 2 (加上 min="0") -->
         <div class="invalid-box">
             <label>無效工時項目 2 (選填)：</label>
             <div class="form-group" style="margin-bottom: 8px;">
@@ -131,7 +131,7 @@
                 </select>
             </div>
             <div class="form-group" style="margin-bottom: 0;">
-                <input type="number" id="invalidMin2" placeholder="請輸入項目 2 分鐘數">
+                <input type="number" id="invalidMin2" min="0" placeholder="請輸入項目 2 分鐘數">
             </div>
         </div>
 
@@ -241,7 +241,7 @@
                 div.onclick = function() {
                     machineInput.value = item;
                     machineList.style.display = 'none';
-                    fetchLastRecord(); // 選好機台自動帶入
+                    fetchLastRecord();
                 };
                 machineList.appendChild(div);
             });
@@ -250,7 +250,6 @@
         }
     });
 
-    // 手動輸入機台移開時也觸發自動帶入
     machineInput.addEventListener('blur', function() {
         setTimeout(() => { machineList.style.display = 'none'; }, 200);
         fetchLastRecord();
@@ -316,11 +315,23 @@
         }
     }
 
+    // 表單送出 (含防負數驗證)
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
         if (!userProfile.userId) {
             alert("⚠️ 尚未取得 LINE 身分識別，請重新整理頁面！");
+            return;
+        }
+
+        const qty = Number(document.getElementById('qty').value);
+        const unitSeconds = Number(document.getElementById('unitSeconds').value);
+        const invalidMin1 = Number(document.getElementById('invalidMin1').value) || 0;
+        const invalidMin2 = Number(document.getElementById('invalidMin2').value) || 0;
+
+        // 嚴格阻擋負數
+        if (qty < 0 || unitSeconds < 0 || invalidMin1 < 0 || invalidMin2 < 0) {
+            alert("❌ 數量、單件秒數與無效工時分鐘數皆不可輸入負數！");
             return;
         }
 
@@ -336,12 +347,12 @@
             startTime: document.getElementById('startTime').value,
             endTime: document.getElementById('endTime').value,
             workingHours: document.getElementById('workingHours').value,
-            qty: document.getElementById('qty').value,
-            unitSeconds: document.getElementById('unitSeconds').value,
+            qty: qty,
+            unitSeconds: unitSeconds,
             invalidType1: document.getElementById('invalidType1').value,
-            invalidMin1: document.getElementById('invalidMin1').value,
+            invalidMin1: invalidMin1,
             invalidType2: document.getElementById('invalidType2').value,
-            invalidMin2: document.getElementById('invalidMin2').value,
+            invalidMin2: invalidMin2,
             remark: document.getElementById('remark').value
         };
 
