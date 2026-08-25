@@ -69,13 +69,13 @@
         <!-- 開始時間與結算時間 -->
         <div class="form-group">
             <label for="startTime">開始時間：</label>
-            <input type="text" id="startTime" placeholder="例: 0800" maxlength="5" oninput="autoFormatTime(this, 'endTime')" required>
+            <input type="text" id="startTime" placeholder="例: 0800" maxlength="5" oninput="autoFormatTime(this, 'endTime')" onblur="validateTimeInput(this)" required>
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 0800 ➔ 08:00）</div>
         </div>
 
         <div class="form-group">
             <label for="endTime">結算時間：</label>
-            <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatTime(this, 'workingHours')" required>
+            <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatTime(this, 'workingHours')" onblur="validateTimeInput(this)" required>
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 1700 ➔ 17:00）</div>
         </div>
 
@@ -87,7 +87,7 @@
             </select>
         </div>
 
-        <!-- 完成數量 (按 Enter 或手機完成鍵自動跳到秒數) -->
+        <!-- 完成數量 -->
         <div class="form-group">
             <label for="qty">本次完成數量 (pcs)：</label>
             <input type="number" id="qty" min="0" required placeholder="請輸入完成數量" onkeydown="jumpToNext(event, 'unitSeconds')">
@@ -270,7 +270,7 @@
             });
     }
 
-    // 💡 智慧跳格輔助函式 (按下 Enter 時觸發)
+    // 智慧跳格與時間格式化
     function jumpToNext(e, nextId) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -279,12 +279,21 @@
         }
     }
 
-    // 💡 智慧時間輸入：打滿 4 位數字自動加上冒號並跳到下一個欄位
     function autoFormatTime(input, nextId) {
         let val = input.value.replace(/\D/g, '');
         if (val.length >= 4) {
-            input.value = val.substring(0, 2) + ':' + val.substring(2, 4);
-            // 當打滿 4 位自動轉換後，自動將游標跳到指定的下一個欄位
+            let hour = parseInt(val.substring(0, 2), 10);
+            let minute = parseInt(val.substring(2, 4), 10);
+
+            if (hour > 23 || minute > 59) {
+                alert(`❌ 輸入的時間 (${val.substring(0,2)}:${val.substring(2,4)}) 無效！小時應在 00~23 之間，分鐘應在 00~59 之間。`);
+                input.value = '';
+                input.focus();
+                return;
+            }
+
+            input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+            
             if (nextId) {
                 const nextEl = document.getElementById(nextId);
                 if (nextEl) nextEl.focus();
@@ -294,7 +303,34 @@
         }
     }
 
-    // 💡 機台編號
+    function validateTimeInput(input) {
+        let val = input.value.trim();
+        if (!val) return;
+
+        let cleanVal = val.replace(/\D/g, '');
+        if (cleanVal.length === 4 && !val.includes(':')) {
+            let hour = parseInt(cleanVal.substring(0, 2), 10);
+            let minute = parseInt(cleanVal.substring(2, 4), 10);
+            if (hour > 23 || minute > 59) {
+                alert(`❌ 輸入的時間 (${val}) 無效！小時應在 00~23 之間，分鐘應在 00~59 之間。`);
+                input.value = '';
+                input.focus();
+                return;
+            }
+            input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+        } else if (val.includes(':')) {
+            let parts = val.split(':');
+            let hour = parseInt(parts[0], 10);
+            let minute = parseInt(parts[1], 10);
+            if (isNaN(hour) || isNaN(minute) || hour > 23 || minute > 59) {
+                alert(`❌ 輸入的時間格式不正確！`);
+                input.value = '';
+                input.focus();
+            }
+        }
+    }
+
+    // 機台編號
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
@@ -322,7 +358,6 @@
                     machineInput.value = item;
                     machineList.style.display = 'none';
                     fetchLastRecord();
-                    // 💡 選好機台後，自動跳到「品名規格」欄位
                     document.getElementById('part').focus();
                 };
                 machineList.appendChild(div);
@@ -347,7 +382,6 @@
             if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
                 items[machineCurrentFocus].click();
             } else if (items.length > 0) {
-                // 如果沒有用上下鍵選，但清單有項目，預設選第一項
                 items[0].click();
             }
         }
@@ -376,7 +410,7 @@
         fetchLastRecord();
     });
 
-    // 💡 品名規格
+    // 品名規格
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
@@ -403,7 +437,6 @@
                 div.onclick = function() {
                     partInput.value = item;
                     partList.style.display = 'none';
-                    // 💡 選好品名後，自動跳到「開始時間」欄位
                     document.getElementById('startTime').focus();
                 };
                 partList.appendChild(div);
@@ -463,7 +496,7 @@
         }
     }
 
-    // 表單送出（含班別時間範圍防呆與跨夜連續性驗證）
+    // 表單送出（含班別範圍防呆、時間合理性與跨夜檢查）
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -612,7 +645,6 @@
                     </div>
                 `;
                 document.getElementById('addInvalidBtn').style.display = 'block';
-                // 提交成功後，將游標重新移回機台編號方便報下一筆
                 machineInput.focus();
             }
         })
