@@ -74,7 +74,7 @@
         </div>
 
         <div class="form-group">
-            <label for="endTime">結算時間 (若填寫數量則必填)：</label>
+            <label for="endTime">結算時間 (有填數量或無效工時則必填)：</label>
             <input type="text" id="endTime" placeholder="例: 1700" maxlength="5" oninput="autoFormatEndTime(this)" onblur="validateTimeInput(this)">
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 1700 ➔ 17:00）</div>
         </div>
@@ -87,10 +87,10 @@
             </select>
         </div>
 
-        <!-- 完成數量 -->
+        <!-- 完成數量 (若為純無效工時可填 0) -->
         <div class="form-group">
             <label for="qty">本次完成數量 (pcs)：</label>
-            <input type="number" id="qty" min="0" required placeholder="請輸入完成數量" onkeydown="jumpToNext(event, 'unitSeconds')">
+            <input type="number" id="qty" min="0" required placeholder="請輸入完成數量 (若無產出可填 0)" onkeydown="jumpToNext(event, 'unitSeconds')">
         </div>
 
         <!-- N 欄單件秒數 -->
@@ -136,7 +136,7 @@
 
 <script>
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNmAcfqQONHACrY_eWBPhGWD5gqnTvtSVm6ANcvV7qH7Wu1CgZJVtNDhSMJI1uCwOEcg/exec";
-    const LIFF_ID = "2011225260-9FkqdTAH"; 
+    const LIFF_ID = "你的-LIFF-ID"; 
 
     let allMachines = [];
     let allParts = [];
@@ -534,9 +534,33 @@
         const endTime = document.getElementById('endTime').value.trim();
         const qty = Number(document.getElementById('qty').value) || 0;
 
-        // 💡 條件式防呆：若填寫了數量（> 0），則結算時間變成必填
+        const invalidBoxes = document.querySelectorAll('.invalid-box');
+        let invalidItems = [];
+        let hasNegativeInvalid = false;
+
+        invalidBoxes.forEach(box => {
+            let type = box.querySelector('.invalidType').value;
+            let min = Number(box.querySelector('.invalidMin').value) || 0;
+            if (min < 0) hasNegativeInvalid = true;
+            if (type && min > 0) {
+                invalidItems.push({ type: type, min: min });
+            }
+        });
+
+        if (hasNegativeInvalid) {
+            alert("❌ 無效工時分鐘數不可輸入負數！");
+            return;
+        }
+
+        // 💡 智慧防呆判斷：有填數量 (>0) 或有填寫無效工時，結算時間即為必填
         if (qty > 0 && !endTime) {
-            alert("❌ 當您填寫了本次完成數量時，結算時間為必填欄位，請填入結算時間！");
+            alert("❌ 當您填寫了本次完成數量時，結算時間為必填欄位！");
+            document.getElementById('endTime').focus();
+            return;
+        }
+
+        if (qty === 0 && invalidItems.length > 0 && !endTime) {
+            alert("❌ 您回報了無效工時但數量為 0，請填寫結算時間以記錄區間！");
             document.getElementById('endTime').focus();
             return;
         }
@@ -596,24 +620,6 @@
 
         if (qty < 0 || unitSeconds < 0) {
             alert("❌ 數量與單件秒數皆不可輸入負數！");
-            return;
-        }
-
-        const invalidBoxes = document.querySelectorAll('.invalid-box');
-        let invalidItems = [];
-        let hasNegativeInvalid = false;
-
-        invalidBoxes.forEach(box => {
-            let type = box.querySelector('.invalidType').value;
-            let min = Number(box.querySelector('.invalidMin').value) || 0;
-            if (min < 0) hasNegativeInvalid = true;
-            if (type && min > 0) {
-                invalidItems.push({ type: type, min: min });
-            }
-        });
-
-        if (hasNegativeInvalid) {
-            alert("❌ 無效工時分鐘數不可輸入負數！");
             return;
         }
 
