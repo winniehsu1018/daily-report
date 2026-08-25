@@ -239,7 +239,7 @@
         });
     }
 
-    function fetchLastRecord() {
+   function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
         const machine = document.getElementById('machine').value.trim();
@@ -253,16 +253,24 @@
                 document.getElementById('startTime').value = ''; 
 
                 if (data.success) {
-                    if (data.part) document.getElementById('part').value = data.part;
-                    if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
-                    if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
+                    // 找得到上一筆紀錄，帶入資料
+                    document.getElementById('part').value = data.part || '';
+                    document.getElementById('workingHours').value = data.workingHours || 540;
+                    document.getElementById('unitSeconds').value = data.unitSeconds || '';
                     
                     lastEndTime = data.endTime || ""; 
                     
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
                 } else {
+                    // 🛡️【防呆清空邏輯】：如果該機台查無上一筆紀錄，強制清空欄位避免殘留舊資料！
+                    document.getElementById('part').value = '';
+                    document.getElementById('unitSeconds').value = '';
+                    // 應有工時可以依據班別重設為預設值
+                    document.getElementById('workingHours').value = (shift === '白班') ? '540' : '510';
+                    
                     lastEndTime = "";
+                    hintEl.style.display = 'none';
                 }
             })
             .catch(err => {
