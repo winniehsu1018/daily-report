@@ -56,7 +56,7 @@
             <label for="machine">機台編號：</label>
             <input type="text" id="machine" required placeholder="輸入關鍵字搜尋機台..." autocomplete="off">
             <div id="machineList" class="dropdown-list"></div>
-            <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料</div>
+            <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入該機台上一筆作業資料（開始時間保持空白）</div>
         </div>
 
         <!-- 品名規格 (模糊搜尋) -->
@@ -102,7 +102,6 @@
         <!-- 動態無效工時區塊 -->
         <label>無效工時項目 (選填)：</label>
         <div id="invalidContainer">
-            <!-- 預設第一組 -->
             <div class="invalid-box" data-index="1">
                 <span>項目 1</span>
                 <div class="form-group" style="margin-top: 8px; margin-bottom: 8px;">
@@ -185,7 +184,6 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
-    // 動態增減無效工時方框 (最多 3 組)
     function addInvalidBox() {
         const container = document.getElementById('invalidContainer');
         const count = container.getElementsByClassName('invalid-box').length;
@@ -239,6 +237,7 @@
         });
     }
 
+    // 自動帶入上一筆機台紀錄（開始時間保持空白）
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -252,7 +251,7 @@
                 const hintEl = document.getElementById('autoHint');
                 if (data.success) {
                     if (data.part) document.getElementById('part').value = data.part;
-                    if (data.startTime) document.getElementById('startTime').value = data.startTime;
+                    // ⚠️ 注意：此處刻意不帶入 startTime，讓開始時間維持空白
                     if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
                     if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
                     
@@ -352,7 +351,6 @@
         }
     }
 
-    // 表單送出
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -369,7 +367,6 @@
             return;
         }
 
-        // 收集所有無效工時方框資料
         const invalidBoxes = document.querySelectorAll('.invalid-box');
         let invalidItems = [];
         let hasNegativeInvalid = false;
@@ -402,7 +399,7 @@
             workingHours: document.getElementById('workingHours').value,
             qty: qty,
             unitSeconds: unitSeconds,
-            invalidItems: invalidItems, // 傳送動態陣列
+            invalidItems: invalidItems,
             remark: document.getElementById('remark').value
         };
 
@@ -417,11 +414,12 @@
             if (data.success) {
                 document.getElementById('qty').value = '';
                 document.getElementById('unitSeconds').value = '';
+                document.getElementById('startTime').value = ''; // 提交成功後也清空開始時間方便下一筆
+                document.getElementById('endTime').value = '';
                 document.getElementById('remark').value = '';
                 machineInput.value = '';
                 partInput.value = '';
                 
-                // 重置無效工時為留一個
                 const container = document.getElementById('invalidContainer');
                 container.innerHTML = `
                     <div class="invalid-box" data-index="1">
