@@ -68,7 +68,7 @@
 
         <!-- 開始時間與結算時間 -->
         <div class="form-group">
-            <label for="startTime">開始時間 (若有上一筆將自動帶入結算時間)：</label>
+            <label for="startTime">開始時間 (若有無上一筆將自動帶入結算時間)：</label>
             <input type="text" id="startTime" placeholder="例: 0800" maxlength="5" oninput="autoFormatTime(this, 'endTime')" onblur="validateTimeInput(this)" onkeydown="jumpToNext(event, 'endTime')" required>
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 0800 ➔ 08:00）</div>
         </div>
@@ -186,7 +186,6 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
-    // 💡 修正後：安全查詢上一筆紀錄，絕不誤刪手動打字
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -202,12 +201,10 @@
                 const startTimeEl = document.getElementById('startTime');
 
                 if (data.success) {
-                    // 💡 只有當「品名欄位是空的」且「使用者沒有正在手動打字」時，才自動帶入
                     if (data.part && !partInputEl.value.trim() && !isUserTypingPart) {
                         partInputEl.value = data.part;
                     }
 
-                    // 💡 只有當「開始時間是空的」時，才自動帶入上一筆的結算時間
                     if (data.endTime && !startTimeEl.value.trim()) {
                         startTimeEl.value = data.endTime;
                         lastRecordEndTime = data.endTime;
@@ -370,7 +367,9 @@
         }
     }
 
-    // 機台編號下拉選單與即時搜尋
+    // ==========================================
+    // 💡 機台編號下拉選單與即時搜尋 (已強化穩定度)
+    // ==========================================
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
@@ -394,13 +393,14 @@
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                div.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
+                // 💡 改用 click 事件搭配 e.stopPropagation，確保手機與電腦點擊選單 100% 成功
+                div.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     machineInput.value = item;
                     machineList.style.display = 'none';
-                    isUserTypingPart = false; // 💡 切換機台時重設打字旗標
-                    document.getElementById('part').value = ''; // 清空舊品名讓系統重新自動帶入
-                    document.getElementById('startTime').value = ''; // 清空舊時間重新帶入
+                    isUserTypingPart = false; 
+                    document.getElementById('part').value = ''; 
+                    document.getElementById('startTime').value = ''; 
                     fetchLastRecord(); 
                     document.getElementById('part').focus();
                 });
@@ -456,7 +456,6 @@
     let partCurrentFocus = -1;
 
     partInput.addEventListener('keydown', function(e) {
-        // 💡 只要開始按鍵盤打字，立刻標記為「手動打字中」
         if (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete") {
             isUserTypingPart = true;
         }
@@ -517,8 +516,8 @@
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                div.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
+                div.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     isUserTypingPart = false;
                     partInput.value = item;
                     partList.style.display = 'none';
