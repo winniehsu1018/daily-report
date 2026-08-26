@@ -184,7 +184,6 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
-    // 💡 查詢當天該機台上一筆紀錄（具備防呆清空邏輯）
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -206,7 +205,6 @@
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
                 } else {
-                    // 🛡️ 防呆清空：當天該機台若無上一筆，自動清空欄位避免殘留
                     document.getElementById('part').value = '';
                     document.getElementById('unitSeconds').value = '';
                     document.getElementById('workingHours').value = (shift === '白班') ? '540' : '510';
@@ -320,7 +318,6 @@
             
             const shift = document.getElementById('shift').value;
             
-            // 💡 核心優化：白班自動帶入 540 並直接跳到數量欄位 ('qty')
             if (shift === '白班') {
                 document.getElementById('workingHours').value = '540';
                 const nextEl = document.getElementById('qty');
@@ -385,12 +382,13 @@
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                div.onclick = function() {
+                div.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
                     machineInput.value = item;
                     machineList.style.display = 'none';
                     fetchLastRecord(); 
                     document.getElementById('part').focus();
-                };
+                });
                 machineList.appendChild(div);
             });
         } else {
@@ -441,18 +439,21 @@
         fetchLastRecord();
     });
 
-// 品名規格下拉選單
+    // 💡 品名規格下拉選單（已修復連續輸入被吃字的問題）
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
 
     partInput.addEventListener('input', function() {
-        const rawVal = this.value.toLowerCase();
-        const val = rawVal.replace(/[\-\s]/g, '');
+        const rawVal = this.value;
+        const val = rawVal.toLowerCase().replace(/[\-\s]/g, '');
         
         partList.innerHTML = '';
         partCurrentFocus = -1;
-        if (!val) { partList.style.display = 'none'; return; }
+        if (!val) { 
+            partList.style.display = 'none'; 
+            return; 
+        }
         
         const filtered = allParts.filter(p => {
             const cleanP = p.toLowerCase().replace(/[\-\s]/g, '');
@@ -465,33 +466,35 @@
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                // 💡 使用 mousedown 而不是 onclick，避免點擊時觸發 blur 導致輸入被吃掉
-                div.onmousedown = function(e) {
-                    e.preventDefault(); // 防止 input 失去焦點
+                // 使用 mousedown 避免失去焦點導致字被清空
+                div.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
                     partInput.value = item;
                     partList.style.display = 'none';
                     document.getElementById('startTime').focus();
-                };
+                });
                 partList.appendChild(div);
             });
         } else {
             partList.style.display = 'none';
         }
     });
-    
+
     partInput.addEventListener('keydown', function(e) {
         let items = partList.getElementsByClassName('dropdown-item');
-        
+
         if (e.key === "ArrowDown") {
             if (items.length > 0) {
                 e.preventDefault();
                 partCurrentFocus++;
+                if (partCurrentFocus >= items.length) partCurrentFocus = 0;
                 addActive(items, partCurrentFocus, 'part');
             }
         } else if (e.key === "ArrowUp") {
             if (items.length > 0) {
                 e.preventDefault();
                 partCurrentFocus--;
+                if (partCurrentFocus < 0) partCurrentFocus = items.length - 1;
                 addActive(items, partCurrentFocus, 'part');
             }
         } else if (e.key === "Enter") {
@@ -501,7 +504,6 @@
             } else if (items.length > 0) {
                 items[0].click();
             } else {
-                // 💡 讓自動帶入件號後按 Enter 可以順暢跳至「開始時間」
                 partList.style.display = 'none';
                 document.getElementById('startTime').focus();
             }
@@ -510,12 +512,6 @@
 
     partInput.addEventListener('blur', function() {
         setTimeout(() => { partList.style.display = 'none'; }, 200);
-    });
-
-    document.getElementById('reportForm').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
-            // 避免預設行為卡住
-        }
     });
 
     document.addEventListener('click', function(e) {
