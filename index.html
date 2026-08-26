@@ -13,7 +13,8 @@
         .form-group { margin-bottom: 15px; position: relative; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
         input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
-        .dropdown-list { position: absolute; width: 100%; max-height: 150px; overflow-y: auto; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; display: none; border-radius: 0 0 5px 5px; }
+        /* 💡 調整下拉選單位置，避免遮擋輸入框本身 */
+        .dropdown-list { position: absolute; top: 100%; left: 0; width: 100%; max-height: 180px; overflow-y: auto; background: white; border: 1px solid #ccc; border-top: none; z-index: 1000; display: none; border-radius: 0 0 5px 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .dropdown-item { padding: 10px; cursor: pointer; }
         .dropdown-item:hover, .dropdown-item.active { background-color: #e0e0e0; }
         button { width: 100%; background: #007bff; color: white; border: none; padding: 12px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
@@ -358,10 +359,45 @@
         }
     }
 
-    // 機台編號下拉選單
+    // ==========================================
+    // 💡 機台編號下拉選單與即時搜尋
+    // ==========================================
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
+
+    machineInput.addEventListener('input', function() {
+        const rawVal = this.value.toLowerCase();
+        const val = rawVal.replace(/[\-\s]/g, ''); 
+        
+        machineList.innerHTML = '';
+        machineCurrentFocus = -1;
+        if (!val) { machineList.style.display = 'none'; return; }
+        
+        const filtered = allMachines.filter(m => {
+            const cleanM = m.toLowerCase().replace(/[\-\s]/g, '');
+            return cleanM.includes(val);
+        });
+
+        if (filtered.length > 0) {
+            machineList.style.display = 'block';
+            filtered.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'dropdown-item';
+                div.textContent = item;
+                div.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    machineInput.value = item;
+                    machineList.style.display = 'none';
+                    fetchLastRecord(); 
+                    document.getElementById('part').focus();
+                });
+                machineList.appendChild(div);
+            });
+        } else {
+            machineList.style.display = 'none';
+        }
+    });
 
     machineInput.addEventListener('keydown', function(e) {
         let items = machineList.getElementsByClassName('dropdown-item');
@@ -382,11 +418,12 @@
             }
         } else if (e.key === "Enter") {
             e.preventDefault();
-            // 💡 修正：如果透過上下鍵選中了某一項，或者預設有出現選項，按 Enter 就直接帶入第一項或當前選中的項
             if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
-                items[machineCurrentFocus].mousedown(); // 觸發點擊帶入
+                machineInput.value = items[machineCurrentFocus].textContent;
+                machineList.style.display = 'none';
+                fetchLastRecord();
+                document.getElementById('part').focus();
             } else if (items.length > 0) {
-                // 如果沒有用上下鍵移動，預設帶入下拉選單的第一個項目 (例如 YCL-20-018)
                 machineInput.value = items[0].textContent;
                 machineList.style.display = 'none';
                 fetchLastRecord();
@@ -395,50 +432,9 @@
         }
     });
 
-    machineInput.addEventListener('keydown', function(e) {
-        let items = machineList.getElementsByClassName('dropdown-item');
-        if (!items || items.length === 0) return;
-
-        if (e.key === "ArrowDown") {
-            machineCurrentFocus++;
-            addActive(items, machineCurrentFocus, 'machine');
-        } else if (e.key === "ArrowUp") {
-            machineCurrentFocus--;
-            addActive(items, machineCurrentFocus, 'machine');
-        } else if (e.key === "Enter") {
-            e.preventDefault();
-            if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
-                items[machineCurrentFocus].click();
-            } else if (items.length > 0) {
-                items[0].click();
-            }
-        }
-    });
-
-    function addActive(items, index, type) {
-        if (!items) return;
-        for (let i = 0; i < items.length; i++) {
-            items[i].classList.remove('active');
-        }
-        if (type === 'machine') {
-            if (index >= items.length) machineCurrentFocus = 0;
-            if (index < 0) machineCurrentFocus = items.length - 1;
-            items[machineCurrentFocus].classList.add('active');
-            items[machineCurrentFocus].scrollIntoView({ block: 'nearest' });
-        } else if (type === 'part') {
-            if (index >= items.length) partCurrentFocus = 0;
-            if (index < 0) partCurrentFocus = items.length - 1;
-            items[partCurrentFocus].classList.add('active');
-            items[partCurrentFocus].scrollIntoView({ block: 'nearest' });
-        }
-    }
-
-    machineInput.addEventListener('blur', function() {
-        setTimeout(() => { machineList.style.display = 'none'; }, 200);
-        fetchLastRecord();
-    });
-
-    // 💡 品名規格下拉選單（已修復連續輸入被吃字的問題）
+    // ==========================================
+    // 💡 品名規格下拉選單與即時搜尋
+    // ==========================================
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
@@ -459,20 +455,19 @@
             return cleanP.includes(val);
         });
 
-       if (filtered.length > 0) {
-            machineList.style.display = 'block';
+        if (filtered.length > 0) {
+            partList.style.display = 'block';
             filtered.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
                 div.addEventListener('mousedown', function(e) {
                     e.preventDefault();
-                    machineInput.value = item;
-                    machineList.style.display = 'none';
-                    fetchLastRecord(); 
-                    document.getElementById('part').focus();
+                    partInput.value = item;
+                    partList.style.display = 'none';
+                    document.getElementById('startTime').focus();
                 });
-                machineList.appendChild(div);
+                partList.appendChild(div);
             });
         } else {
             partList.style.display = 'none';
@@ -499,14 +494,41 @@
         } else if (e.key === "Enter") {
             e.preventDefault();
             if (partCurrentFocus > -1 && items[partCurrentFocus]) {
-                items[partCurrentFocus].click();
+                partInput.value = items[partCurrentFocus].textContent;
+                partList.style.display = 'none';
+                document.getElementById('startTime').focus();
             } else if (items.length > 0) {
-                items[0].click();
+                partInput.value = items[0].textContent;
+                partList.style.display = 'none';
+                document.getElementById('startTime').focus();
             } else {
                 partList.style.display = 'none';
                 document.getElementById('startTime').focus();
             }
         }
+    });
+
+    function addActive(items, index, type) {
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+            items[i].classList.remove('active');
+        }
+        if (type === 'machine') {
+            if (index >= items.length) machineCurrentFocus = 0;
+            if (index < 0) machineCurrentFocus = items.length - 1;
+            items[machineCurrentFocus].classList.add('active');
+            items[machineCurrentFocus].scrollIntoView({ block: 'nearest' });
+        } else if (type === 'part') {
+            if (index >= items.length) partCurrentFocus = 0;
+            if (index < 0) partCurrentFocus = items.length - 1;
+            items[partCurrentFocus].classList.add('active');
+            items[partCurrentFocus].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    machineInput.addEventListener('blur', function() {
+        setTimeout(() => { machineList.style.display = 'none'; }, 200);
+        fetchLastRecord();
     });
 
     partInput.addEventListener('blur', function() {
