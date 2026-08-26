@@ -182,8 +182,10 @@
             .then(data => {
                 allMachines = data.machines || [];
                 allParts = data.parts || [];
+                console.log("✅ 成功載入機台選項數量:", allMachines.length);
+                console.log("✅ 成功載入品名選項數量:", allParts.length);
             })
-            .catch(err => console.error("無法取得選單資料", err));
+            .catch(err => console.error("⚠️ 無法取得選單資料", err));
     }
 
     function fetchLastRecord() {
@@ -368,14 +370,7 @@
     }
 
     // ==========================================
-    // 💡 機台編號下拉選單與即時搜尋 (已強化穩定度)
-    // ==========================================
-    const machineInput = document.getElementById('machine');
-    const machineList = document.getElementById('machineList');
-    let machineCurrentFocus = -1;
-
-   // ==========================================
-    // 💡 機台編號下拉選單與即時模糊搜尋（含除錯）
+    // 💡 機台編號下拉選單與即時模糊搜尋（單一宣告）
     // ==========================================
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
@@ -387,21 +382,12 @@
         
         machineList.innerHTML = '';
         machineCurrentFocus = -1;
-        
-        console.log("目前機台輸入值:", rawVal, "清理後:", val);
-        console.log("目前系統快取的機台清單總數:", allMachines.length);
-
-        if (!val) { 
-            machineList.style.display = 'none'; 
-            return; 
-        }
+        if (!val) { machineList.style.display = 'none'; return; }
         
         const filtered = allMachines.filter(m => {
             const cleanM = m.toLowerCase().replace(/[\-\s]/g, '');
             return cleanM.includes(val);
         });
-
-        console.log("過濾後的機台結果:", filtered);
 
         if (filtered.length > 0) {
             machineList.style.display = 'block';
@@ -413,9 +399,9 @@
                     e.preventDefault();
                     machineInput.value = item;
                     machineList.style.display = 'none';
-                    isUserTypingPart = false;
-                    document.getElementById('part').value = '';
-                    document.getElementById('startTime').value = '';
+                    isUserTypingPart = false; 
+                    document.getElementById('part').value = ''; 
+                    document.getElementById('startTime').value = ''; 
                     fetchLastRecord(); 
                     document.getElementById('part').focus();
                 });
@@ -470,7 +456,9 @@
         fetchLastRecord();
     });
 
-    // 品名規格專用：防吃字搜尋邏輯
+    // ==========================================
+    // 💡 品名規格專用：防吃字搜尋邏輯
+    // ==========================================
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
@@ -536,8 +524,8 @@
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                div.addEventListener('click', function(e) {
-                    e.stopPropagation();
+                div.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
                     isUserTypingPart = false;
                     partInput.value = item;
                     partList.style.display = 'none';
@@ -573,11 +561,6 @@
             items[partCurrentFocus].scrollIntoView({ block: 'nearest' });
         }
     }
-
-    machineInput.addEventListener('blur', function() {
-        setTimeout(() => { machineList.style.display = 'none'; }, 200);
-        fetchLastRecord();
-    });
 
     document.addEventListener('click', function(e) {
         if (!machineInput.contains(e.target)) machineList.style.display = 'none';
