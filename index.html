@@ -142,7 +142,7 @@
     let allParts = [];
     let userProfile = {};
     let isUserTypingPart = false;
-    let lastRecordEndTime = null; // 💡 記錄上一筆的結算時間，用來做防呆比對
+    let lastRecordEndTime = null; 
 
     window.onload = function() {
         const today = new Date();
@@ -186,8 +186,8 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
-    // 💡 查詢上一筆紀錄，並自動帶入開始時間（上一筆結算時間）
-   function fetchLastRecord() {
+    // 💡 修正後：安全查詢上一筆紀錄，絕不誤刪手動打字
+    function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
         const machine = document.getElementById('machine').value.trim();
@@ -199,15 +199,15 @@
             .then(data => {
                 const hintEl = document.getElementById('autoHint');
                 const partInputEl = document.getElementById('part');
+                const startTimeEl = document.getElementById('startTime');
 
                 if (data.success) {
-                    // 💡 關鍵保護：只有當品名欄位目前是空的，且使用者沒有正在動態打字時，才允許自動帶入上一筆品名！
+                    // 💡 只有當「品名欄位是空的」且「使用者沒有正在手動打字」時，才自動帶入
                     if (data.part && !partInputEl.value.trim() && !isUserTypingPart) {
                         partInputEl.value = data.part;
                     }
 
-                    // 同樣地，如果開始時間是空的，才自動帶入上一筆的結算時間作為開始時間
-                    const startTimeEl = document.getElementById('startTime');
+                    // 💡 只有當「開始時間是空的」時，才自動帶入上一筆的結算時間
                     if (data.endTime && !startTimeEl.value.trim()) {
                         startTimeEl.value = data.endTime;
                         lastRecordEndTime = data.endTime;
@@ -219,12 +219,6 @@
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
                 } else {
-                    // 如果沒有上一筆紀錄，且欄位是空的才清空
-                    if (!partInputEl.value.trim()) {
-                        partInputEl.value = '';
-                    }
-                    document.getElementById('unitSeconds').value = '';
-                    document.getElementById('workingHours').value = (shift === '白班') ? '540' : '510';
                     lastRecordEndTime = null;
                     hintEl.style.display = 'none';
                 }
@@ -404,6 +398,9 @@
                     e.preventDefault();
                     machineInput.value = item;
                     machineList.style.display = 'none';
+                    isUserTypingPart = false; // 💡 切換機台時重設打字旗標
+                    document.getElementById('part').value = ''; // 清空舊品名讓系統重新自動帶入
+                    document.getElementById('startTime').value = ''; // 清空舊時間重新帶入
                     fetchLastRecord(); 
                     document.getElementById('part').focus();
                 });
@@ -436,11 +433,17 @@
             if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
                 machineInput.value = items[machineCurrentFocus].textContent;
                 machineList.style.display = 'none';
+                isUserTypingPart = false;
+                document.getElementById('part').value = '';
+                document.getElementById('startTime').value = '';
                 fetchLastRecord();
                 document.getElementById('part').focus();
             } else if (items.length > 0) {
                 machineInput.value = items[0].textContent;
                 machineList.style.display = 'none';
+                isUserTypingPart = false;
+                document.getElementById('part').value = '';
+                document.getElementById('startTime').value = '';
                 fetchLastRecord();
                 document.getElementById('part').focus();
             }
@@ -452,12 +455,47 @@
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
 
-    partInput.addEventListener('focus', function() {
-        isUserTypingPart = true;
+    partInput.addEventListener('keydown', function(e) {
+        // 💡 只要開始按鍵盤打字，立刻標記為「手動打字中」
+        if (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete") {
+            isUserTypingPart = true;
+        }
+
+        let items = partList.getElementsByClassName('dropdown-item');
+
+        if (e.key === "ArrowDown") {
+            if (items.length > 0) {
+                e.preventDefault();
+                partCurrentFocus++;
+                if (partCurrentFocus >= items.length) partCurrentFocus = 0;
+                addActive(items, partCurrentFocus, 'part');
+            }
+        } else if (e.key === "ArrowUp") {
+            if (items.length > 0) {
+                e.preventDefault();
+                partCurrentFocus--;
+                if (partCurrentFocus < 0) partCurrentFocus = items.length - 1;
+                addActive(items, partCurrentFocus, 'part');
+            }
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            isUserTypingPart = false;
+            if (partCurrentFocus > -1 && items[partCurrentFocus]) {
+                partInput.value = items[partCurrentFocus].textContent;
+                partList.style.display = 'none';
+                document.getElementById('startTime').focus();
+            } else if (items.length > 0) {
+                partInput.value = items[0].textContent;
+                partList.style.display = 'none';
+                document.getElementById('startTime').focus();
+            } else {
+                partList.style.display = 'none';
+                document.getElementById('startTime').focus();
+            }
+        }
     });
 
     partInput.addEventListener('input', function() {
-        isUserTypingPart = true;
         const rawVal = this.value;
         const val = rawVal.toLowerCase().replace(/[\-\s]/g, '');
         
@@ -493,45 +531,9 @@
         }
     });
 
-    partInput.addEventListener('keydown', function(e) {
-        let items = partList.getElementsByClassName('dropdown-item');
-
-        if (e.key === "ArrowDown") {
-            if (items.length > 0) {
-                e.preventDefault();
-                partCurrentFocus++;
-                if (partCurrentFocus >= items.length) partCurrentFocus = 0;
-                addActive(items, partCurrentFocus, 'part');
-            }
-        } else if (e.key === "ArrowUp") {
-            if (items.length > 0) {
-                e.preventDefault();
-                partCurrentFocus--;
-                if (partCurrentFocus < 0) partCurrentFocus = items.length - 1;
-                addActive(items, partCurrentFocus, 'part');
-            }
-        } else if (e.key === "Enter") {
-            e.preventDefault();
-            isUserTypingPart = false;
-            if (partCurrentFocus > -1 && items[partCurrentFocus]) {
-                partInput.value = items[partCurrentFocus].textContent;
-                partList.style.display = 'none';
-                document.getElementById('startTime').focus();
-            } else if (items.length > 0) {
-                partInput.value = items[0].textContent;
-                partList.style.display = 'none';
-                document.getElementById('startTime').focus();
-            } else {
-                partList.style.display = 'none';
-                document.getElementById('startTime').focus();
-            }
-        }
-    });
-
     partInput.addEventListener('blur', function() {
         setTimeout(() => { 
             partList.style.display = 'none'; 
-            isUserTypingPart = false;
         }, 200);
     });
 
@@ -663,7 +665,6 @@
             let h = parseInt(parts[0], 10);
             let m = parseInt(parts[1], 10);
             let total = h * 60 + m;
-            // 中班跨夜處理：若小於早上8點(480分)，視為隔天凌晨，加上 1440 分鐘
             if (isMidShift && total < 480) {
                 total += 1440;
             }
@@ -674,10 +675,8 @@
         let startMin = parseMinutes(startTime, isMid);
         let endMin = endTime ? parseMinutes(endTime, isMid) : null;
 
-        // 💡 核心防呆：檢查本次開始時間是否早於上一筆的結算時間！
         if (lastRecordEndTime) {
             let lastEndMin = parseMinutes(lastRecordEndTime, isMid);
-            // 如果本次開始時間小於上一筆結算時間，直接阻擋！
             if (startMin < lastEndMin) {
                 alert(`❌ 時間防呆錯誤：本筆開始時間 (${startTime}) 不得早於上一筆的結算時間 (${lastRecordEndTime})！`);
                 document.getElementById('startTime').focus();
@@ -696,7 +695,6 @@
             let adjStartMin = startMin;
             let adjEndMin = endMin !== null ? parseMinutes(endTime, true) : null;
             
-            // 中班時間範圍防呆
             if (adjStartMin < 1020 || (adjEndMin !== null && (adjEndMin > 1710 || adjStartMin > adjEndMin))) {
                 alert("❌ 【中班】的時間範圍必須在 17:00 ~ 03:30 跨夜範圍內！");
                 return;
