@@ -660,171 +660,83 @@
     // =========================================================
 
     function fetchLastRecord() {
-
-        const date =
-            document.getElementById('date').value.trim();
-
-        const shift =
-            document.getElementById('shift').value;
-
-        const machine =
-            selectedMachine;
+        const date = document.getElementById('date').value.trim();
+        const shift = document.getElementById('shift').value;
+        
+        // 💡 修正這裡：直接從輸入框抓取內容，或者優先使用已選擇的機台，確保一定抓得到機台名稱
+        const machine = (machineInput.value || selectedMachine).trim();
 
         if (!date || !shift || !machine) {
             return;
         }
 
         // 每次查詢產生新的 sequence
-        const requestSeq =
-            ++lastRecordRequestSeq;
+        const requestSeq = ++lastRecordRequestSeq;
 
-        const url =
-            `${GAS_WEB_APP_URL}` +
+        const url = `${GAS_WEB_APP_URL}` +
             `?action=getLastRecord` +
             `&date=${encodeURIComponent(date)}` +
             `&shift=${encodeURIComponent(shift)}` +
             `&machine=${encodeURIComponent(machine)}`;
 
         fetch(url)
-
         .then(res => {
-
             if (!res.ok) {
-
-                throw new Error(
-                    `HTTP ${res.status}`
-                );
-
+                throw new Error(`HTTP ${res.status}`);
             }
-
             return res.json();
-
         })
-
         .then(data => {
-
-            // 如果這不是最新一次查詢
-            // 直接忽略舊資料
+            // 如果這不是最新一次查詢，直接忽略舊資料
             if (requestSeq !== lastRecordRequestSeq) {
-
-                console.log(
-                    "忽略舊的 getLastRecord 回應"
-                );
-
                 return;
-
             }
 
-            const hintEl =
-                document.getElementById('autoHint');
-
-            const partInputEl =
-                document.getElementById('part');
-
-            const startTimeEl =
-                document.getElementById('startTime');
+            const hintEl = document.getElementById('autoHint');
+            const partInputEl = document.getElementById('part');
+            const startTimeEl = document.getElementById('startTime');
 
             if (data.success) {
-
                 // 自動帶入品號
-                if (
-                    data.part &&
-                    !partInputEl.value.trim() &&
-                    !isUserTypingPart
-                ) {
-
-                    partInputEl.value =
-                        data.part;
-
+                if (data.part && !partInputEl.value.trim() && !isUserTypingPart) {
+                    partInputEl.value = data.part;
                 }
 
                 // 自動帶入上一筆結束時間
-                if (
-                    data.endTime &&
-                    !startTimeEl.value.trim()
-                ) {
-
-                    startTimeEl.value =
-                        data.endTime;
-
-                    lastRecordEndTime =
-                        data.endTime;
-
+                if (data.endTime && !startTimeEl.value.trim()) {
+                    startTimeEl.value = data.endTime;
+                    lastRecordEndTime = data.endTime;
                 }
 
                 // 自動帶入應有工時
                 if (data.workingHours) {
-
-                    document.getElementById(
-                        'workingHours'
-                    ).value =
-                        data.workingHours;
-
+                    document.getElementById('workingHours').value = data.workingHours;
                 }
 
                 // 自動帶入單件秒數
-                if (
-                    data.unitSeconds !== undefined &&
-                    data.unitSeconds !== null &&
-                    data.unitSeconds !== ""
-                ) {
-
-                    const previousSeconds =
-                        Number(data.unitSeconds);
-
-                    if (
-                        !isNaN(previousSeconds) &&
-                        previousSeconds >= 0 &&
-                        previousSeconds <= 300
-                    ) {
-
-                        document.getElementById(
-                            'unitSeconds'
-                        ).value =
-                            previousSeconds;
-
+                if (data.unitSeconds !== undefined && data.unitSeconds !== null && data.unitSeconds !== "") {
+                    const previousSeconds = Number(data.unitSeconds);
+                    if (!isNaN(previousSeconds) && previousSeconds >= 0 && previousSeconds <= 300) {
+                        document.getElementById('unitSeconds').value = previousSeconds;
                     }
-
                 }
 
-                hintEl.style.display =
-                    'block';
-
+                hintEl.style.display = 'block';
                 setTimeout(() => {
-
-                    hintEl.style.display =
-                        'none';
-
+                    hintEl.style.display = 'none';
                 }, 4000);
 
             } else {
-
-                lastRecordEndTime =
-                    null;
-
-                hintEl.style.display =
-                    'none';
-
+                lastRecordEndTime = null;
+                hintEl.style.display = 'none';
             }
-
         })
-
         .catch(err => {
-
-            // 同樣只處理最新請求
-            if (
-                requestSeq !== lastRecordRequestSeq
-            ) {
+            if (requestSeq !== lastRecordRequestSeq) {
                 return;
             }
-
-            console.error(
-                "無法取得上一筆紀錄",
-                err
-            );
-
+            console.error("無法取得上一筆紀錄", err);
         });
-
     }
 
 
