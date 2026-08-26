@@ -56,7 +56,7 @@
             <label for="machine">機台編號：</label>
             <input type="text" id="machine" required placeholder="輸入關鍵字 (如 20011 或 011)..." autocomplete="off">
             <div id="machineList" class="dropdown-list"></div>
-            <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入當天該機台上一筆作業資料</div>
+            <div class="auto-hint" id="autoHint" style="display:none;">⚡ 已自動帶入當天該機台上一筆作業資料與結束時間</div>
         </div>
 
         <!-- 品名規格 -->
@@ -68,7 +68,7 @@
 
         <!-- 開始時間與結算時間 -->
         <div class="form-group">
-            <label for="startTime">開始時間：</label>
+            <label for="startTime">開始時間 (若有上一筆將自動帶入結算時間)：</label>
             <input type="text" id="startTime" placeholder="例: 0800" maxlength="5" oninput="autoFormatTime(this, 'endTime')" onblur="validateTimeInput(this)" required>
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 0800 ➔ 08:00）</div>
         </div>
@@ -142,6 +142,7 @@
     let allParts = [];
     let userProfile = {};
     let isUserTypingPart = false;
+    let lastRecordEndTime = null; // 💡 記錄上一筆的結算時間，用來做防呆比對
 
     window.onload = function() {
         const today = new Date();
@@ -185,7 +186,7 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
-    // 💡 修正後：確保能順利自動帶入上一筆品名
+    // 💡 查詢上一筆紀錄，並自動帶入開始時間（上一筆結算時間）
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -197,13 +198,22 @@
             .then(res => res.json())
             .then(data => {
                 const hintEl = document.getElementById('autoHint');
-                document.getElementById('startTime').value = ''; 
 
                 if (data.success) {
+                    // 1. 自動帶入上一筆品名
                     if (data.part) {
                         document.getElementById('part').value = data.part;
                         isUserTypingPart = false;
                     }
+                    // 2. 💡 關鍵：自動將上一筆的「結算時間」填入本次的「開始時間」
+                    if (data.endTime) {
+                        document.getElementById('startTime').value = data.endTime;
+                        lastRecordEndTime = data.endTime; // 儲存起來供送出時防呆比對
+                    } else {
+                        document.getElementById('startTime').value = '';
+                        lastRecordEndTime = null;
+                    }
+
                     if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
                     if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
                     
@@ -211,8 +221,10 @@
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
                 } else {
                     document.getElementById('part').value = '';
+                    document.getElementById('startTime').value = '';
                     document.getElementById('unitSeconds').value = '';
                     document.getElementById('workingHours').value = (shift === '白班') ? '540' : '510';
+                    lastRecordEndTime = null;
                     hintEl.style.display = 'none';
                 }
             })
@@ -363,9 +375,7 @@
         }
     }
 
-    // ==========================================
-    // 💡 機台編號下拉選單與即時搜尋
-    // ==========================================
+    // 機台編號下拉選單與即時搜尋
     const machineInput = document.getElementById('machine');
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
@@ -436,9 +446,7 @@
         }
     });
 
-    // ==========================================
-    // 💡 品名規格專用：防吃字搜尋邏輯
-    // ==========================================
+    // 品名規格專用：防吃字搜尋邏輯
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
@@ -575,7 +583,7 @@
         }
     }
 
-    // 表單送出與驗證
+    // 表單送出與防呆驗證
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -649,28 +657,45 @@
             return;
         }
 
-        let parseMinutes = (timeStr) => {
+        let parseMinutes = (timeStr, isMidShift) => {
             let parts = timeStr.split(':');
             let h = parseInt(parts[0], 10);
             let m = parseInt(parts[1], 10);
-            return h * 60 + m;
+            let total = h * 60 + m;
+            // 中班跨夜處理：若小於早上8點(480分)，視為隔天凌晨，加上 1440 分鐘
+            if (isMidShift && total < 480) {
+                total += 1440;
+            }
+            return total;
         };
 
-        let startMin = parseMinutes(startTime);
-        let endMin = endTime ? parseMinutes(endTime) : null;
+        let isMid = (shift === '中班');
+        let startMin = parseMinutes(startTime, isMid);
+        let endMin = endTime ? parseMinutes(endTime, isMid) : null;
+
+        // 💡 核心防呆：檢查本次開始時間是否早於上一筆的結算時間！
+        if (lastRecordEndTime) {
+            let lastEndMin = parseMinutes(lastRecordEndTime, isMid);
+            // 如果本次開始時間小於上一筆結算時間，直接阻擋！
+            if (startMin < lastEndMin) {
+                alert(`❌ 時間防呆錯誤：本筆開始時間 (${startTime}) 不得早於上一筆的結算時間 (${lastRecordEndTime})！`);
+                document.getElementById('startTime').focus();
+                return;
+            }
+        }
 
         if (shift === '白班') {
-            if (startMin < 480 || startMin > 1020 || (endMin !== null && (endMin < 480 || endMin > 1020))) {
+            let rawStart = parseMinutes(startTime, false);
+            let rawEnd = endMin !== null ? parseMinutes(endTime, false) : null;
+            if (rawStart < 480 || rawStart > 1020 || (rawEnd !== null && (rawEnd < 480 || rawEnd > 1020))) {
                 alert("❌ 【白班】的時間範圍必須在 08:00 ~ 17:00 之間！");
                 return;
             }
         } else if (shift === '中班') {
             let adjStartMin = startMin;
-            let adjEndMin = endMin !== null ? endMin : null;
+            let adjEndMin = endMin !== null ? parseMinutes(endTime, true) : null;
             
-            if (adjStartMin < 480) adjStartMin += 1440; 
-            if (adjEndMin !== null && adjEndMin < 480) adjEndMin += 1440;     
-            
+            // 中班時間範圍防呆
             if (adjStartMin < 1020 || (adjEndMin !== null && (adjEndMin > 1710 || adjStartMin > adjEndMin))) {
                 alert("❌ 【中班】的時間範圍必須在 17:00 ~ 03:30 跨夜範圍內！");
                 return;
@@ -712,6 +737,7 @@
                 machineInput.value = '';
                 partInput.value = '';
                 isUserTypingPart = false;
+                lastRecordEndTime = null;
                 
                 const container = document.getElementById('invalidContainer');
                 container.innerHTML = `
