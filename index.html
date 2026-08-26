@@ -187,7 +187,7 @@
     }
 
     // 💡 查詢上一筆紀錄，並自動帶入開始時間（上一筆結算時間）
-    function fetchLastRecord() {
+   function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
         const machine = document.getElementById('machine').value.trim();
@@ -198,20 +198,19 @@
             .then(res => res.json())
             .then(data => {
                 const hintEl = document.getElementById('autoHint');
+                const partInputEl = document.getElementById('part');
 
                 if (data.success) {
-                    // 1. 自動帶入上一筆品名
-                    if (data.part) {
-                        document.getElementById('part').value = data.part;
-                        isUserTypingPart = false;
+                    // 💡 關鍵保護：只有當品名欄位目前是空的，且使用者沒有正在動態打字時，才允許自動帶入上一筆品名！
+                    if (data.part && !partInputEl.value.trim() && !isUserTypingPart) {
+                        partInputEl.value = data.part;
                     }
-                    // 2. 💡 關鍵：自動將上一筆的「結算時間」填入本次的「開始時間」
-                    if (data.endTime) {
-                        document.getElementById('startTime').value = data.endTime;
-                        lastRecordEndTime = data.endTime; // 儲存起來供送出時防呆比對
-                    } else {
-                        document.getElementById('startTime').value = '';
-                        lastRecordEndTime = null;
+
+                    // 同樣地，如果開始時間是空的，才自動帶入上一筆的結算時間作為開始時間
+                    const startTimeEl = document.getElementById('startTime');
+                    if (data.endTime && !startTimeEl.value.trim()) {
+                        startTimeEl.value = data.endTime;
+                        lastRecordEndTime = data.endTime;
                     }
 
                     if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
@@ -220,8 +219,10 @@
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
                 } else {
-                    document.getElementById('part').value = '';
-                    document.getElementById('startTime').value = '';
+                    // 如果沒有上一筆紀錄，且欄位是空的才清空
+                    if (!partInputEl.value.trim()) {
+                        partInputEl.value = '';
+                    }
                     document.getElementById('unitSeconds').value = '';
                     document.getElementById('workingHours').value = (shift === '白班') ? '540' : '510';
                     lastRecordEndTime = null;
