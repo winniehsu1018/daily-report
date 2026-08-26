@@ -303,7 +303,7 @@
         }
     }
 
-    function autoFormatEndTime(input) {
+ function autoFormatEndTime(input) {
         let val = input.value.replace(/\D/g, '');
         if (val.length >= 4) {
             let hour = parseInt(val.substring(0, 2), 10);
@@ -319,15 +319,22 @@
             input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
             
             const shift = document.getElementById('shift').value;
-            let nextTargetId = (shift === '白班') ? 'qty' : 'workingHours';
             
-            const nextEl = document.getElementById(nextTargetId);
-            if (nextEl) nextEl.focus();
+            // 💡 核心優化：如果是「白班」，自動將應有工時設為 540，並直接跳到本次完成數量 ('qty')
+            if (shift === '白班') {
+                document.getElementById('workingHours').value = '540';
+                const nextEl = document.getElementById('qty');
+                if (nextEl) nextEl.focus();
+            } else {
+                // 中班因為有 510 或 630 的選擇，維持原本邏輯跳到應有工時欄位
+                const nextEl = document.getElementById('workingHours');
+                if (nextEl) nextEl.focus();
+            }
         } else {
             input.value = val;
         }
     }
-
+    
     function validateTimeInput(input) {
         let val = input.value.trim();
         if (!val) return;
