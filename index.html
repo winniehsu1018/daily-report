@@ -141,7 +141,7 @@
     let allMachines = [];
     let allParts = [];
     let userProfile = {};
-    let isUserTypingPart = false; // 💡 防止非同步查詢覆蓋手動打字的旗標
+    let isUserTypingPart = false;
 
     window.onload = function() {
         const today = new Date();
@@ -185,6 +185,7 @@
             .catch(err => console.error("無法取得選單資料", err));
     }
 
+    // 💡 修正後：確保能順利自動帶入上一筆品名
     function fetchLastRecord() {
         const date = document.getElementById('date').value;
         const shift = document.getElementById('shift').value;
@@ -199,9 +200,9 @@
                 document.getElementById('startTime').value = ''; 
 
                 if (data.success) {
-                    // 💡 只有當使用者沒有在手動打品名時，才允許自動帶入上一筆的品名
-                    if (data.part && !isUserTypingPart && !document.getElementById('part').value) {
+                    if (data.part) {
                         document.getElementById('part').value = data.part;
+                        isUserTypingPart = false;
                     }
                     if (data.workingHours) document.getElementById('workingHours').value = data.workingHours;
                     if (data.unitSeconds) document.getElementById('unitSeconds').value = data.unitSeconds;
@@ -209,9 +210,7 @@
                     hintEl.style.display = 'block';
                     setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
                 } else {
-                    if (!isUserTypingPart && !document.getElementById('part').value) {
-                        document.getElementById('part').value = '';
-                    }
+                    document.getElementById('part').value = '';
                     document.getElementById('unitSeconds').value = '';
                     document.getElementById('workingHours').value = (shift === '白班') ? '540' : '510';
                     hintEl.style.display = 'none';
@@ -438,7 +437,7 @@
     });
 
     // ==========================================
-    // 💡 品名規格專用：高強度防吃字、防覆蓋搜尋邏輯
+    // 💡 品名規格專用：防吃字搜尋邏輯
     // ==========================================
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
@@ -449,7 +448,7 @@
     });
 
     partInput.addEventListener('input', function() {
-        isUserTypingPart = true; // 鎖定手動打字狀態
+        isUserTypingPart = true;
         const rawVal = this.value;
         const val = rawVal.toLowerCase().replace(/[\-\s]/g, '');
         
@@ -712,7 +711,7 @@
                 document.getElementById('remark').value = '';
                 machineInput.value = '';
                 partInput.value = '';
-                isUserTypingPart = false; // 重設打字旗標
+                isUserTypingPart = false;
                 
                 const container = document.getElementById('invalidContainer');
                 container.innerHTML = `
