@@ -18,6 +18,7 @@
         .dropdown-item:hover, .dropdown-item.active { background-color: #e0e0e0; }
         button { width: 100%; background: #007bff; color: white; border: none; padding: 12px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
         button:hover { background: #0056b3; }
+        button:disabled { background: #cccccc; cursor: not-allowed; }
         #loading { display: none; text-align: center; color: #007bff; font-weight: bold; margin-top: 10px; }
         .time-hint { font-size: 12px; color: #888; margin-top: 3px; }
         #userInfo { font-size: 13px; color: #666; text-align: right; margin-bottom: 15px; }
@@ -130,7 +131,7 @@
         </div>
 
         <button type="submit" id="submitBtn">確認送出</button>
-        <div id="loading">正在送出資料，請稍候...</div>
+        <div id="loading">⏳ 正在送出資料，請稍候（請勿重複點擊）...</div>
     </form>
 </div>
 
@@ -582,7 +583,7 @@
         }
     }
 
-    // 表單送出與防呆驗證 (已加入逾時保護與自動解鎖)
+    // 表單送出與時段防呆驗證 (已移除歷史時間序鎖定)
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -671,13 +672,11 @@
         let startMin = parseMinutes(startTime, isMid);
         let endMin = endTime ? parseMinutes(endTime, isMid) : null;
 
-        if (lastRecordEndTime) {
-            let lastEndMin = parseMinutes(lastRecordEndTime, isMid);
-            if (startMin < lastEndMin) {
-                alert(`❌ 時間防呆錯誤：本筆開始時間 (${startTime}) 不得早於上一筆的結算時間 (${lastRecordEndTime})！`);
-                document.getElementById('startTime').focus();
-                return;
-            }
+        // 若填寫了結算時間，檢查開始時間是否大於結算時間
+        if (endMin !== null && startMin > endMin) {
+            alert(`❌ 時間防呆錯誤：開始時間 (${startTime}) 不能晚於結算時間 (${endTime})！`);
+            document.getElementById('startTime').focus();
+            return;
         }
 
         if (shift === '白班') {
@@ -697,6 +696,10 @@
             }
         }
 
+        // 鎖定按鈕避免重複點擊
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = "傳送中...";
         document.getElementById('loading').style.display = 'block';
         
         const formData = {
@@ -727,12 +730,15 @@
         Promise.race([fetchPromise, timeoutPromise])
         .then(data => {
             document.getElementById('loading').style.display = 'none';
+            submitBtn.disabled = false;
+            submitBtn.textContent = "確認送出";
             alert(data.message || "✅ 回報成功！");
             resetFormAfterSubmit();
         })
         .catch(err => {
             document.getElementById('loading').style.display = 'none';
-            // 即使 GAS 重新導向導致 JSON 解析異常，資料其實已寫入，故強制提示成功並解鎖畫面
+            submitBtn.disabled = false;
+            submitBtn.textContent = "確認送出";
             console.warn("捕捉到回應異常，但資料可能已寫入:", err);
             alert("✅ 回報成功！資料已寫入試算表。");
             resetFormAfterSubmit();
