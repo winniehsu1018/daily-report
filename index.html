@@ -2571,57 +2571,23 @@
                 // 建立送出資料
                 // =================================================
 
-                const formData = {
+const formData = {
+    requestId: crypto.randomUUID(),
 
-                    // 防重複寫入用
-                    requestId:
-                        currentRequestId,
-
-                    userId:
-                        userProfile.userId,
-
-                    userName:
-                        userProfile.displayName,
-
-                    date:
-                        document.getElementById(
-                            'date'
-                        ).value,
-
-                    shift:
-                        shift,
-
-                    machine:
-                        selectedMachine,
-
-                    part:
-                        partInput.value.trim(),
-
-                    startTime:
-                        startTime,
-
-                    endTime:
-                        endTime,
-
-                    workingHours:
-                        workingHours,
-
-                    qty:
-                        qty,
-
-                    unitSeconds:
-                        unitSeconds,
-
-                    invalidItems:
-                        invalidItems,
-
-                    remark:
-                        document.getElementById(
-                            'remark'
-                        ).value.trim()
-
-                };
-
+    userId: userProfile.userId,
+    userName: userProfile.displayName,
+    date: document.getElementById('date').value,
+    shift: shift,
+    machine: machineInput.value,
+    part: partInput.value,
+    startTime: startTime,
+    endTime: endTime,
+    workingHours: document.getElementById('workingHours').value,
+    qty: qty,
+    unitSeconds: unitSeconds,
+    invalidItems: invalidItems,
+    remark: document.getElementById('remark').value
+};
 
                 // =================================================
                 // 15 秒 Timeout
