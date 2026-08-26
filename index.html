@@ -303,7 +303,7 @@
         }
     }
 
- function autoFormatEndTime(input) {
+    function autoFormatEndTime(input) {
         let val = input.value.replace(/\D/g, '');
         if (val.length >= 4) {
             let hour = parseInt(val.substring(0, 2), 10);
@@ -320,13 +320,12 @@
             
             const shift = document.getElementById('shift').value;
             
-            // 💡 核心優化：如果是「白班」，自動將應有工時設為 540，並直接跳到本次完成數量 ('qty')
+            // 💡 核心優化：白班自動帶入 540 並直接跳到數量欄位 ('qty')
             if (shift === '白班') {
                 document.getElementById('workingHours').value = '540';
                 const nextEl = document.getElementById('qty');
                 if (nextEl) nextEl.focus();
             } else {
-                // 中班因為有 510 或 630 的選擇，維持原本邏輯跳到應有工時欄位
                 const nextEl = document.getElementById('workingHours');
                 if (nextEl) nextEl.focus();
             }
@@ -389,7 +388,7 @@
                 div.onclick = function() {
                     machineInput.value = item;
                     machineList.style.display = 'none';
-                    fetchLastRecord(); // 💡 選擇機台時自動查詢當天上一筆
+                    fetchLastRecord(); 
                     document.getElementById('part').focus();
                 };
                 machineList.appendChild(div);
@@ -480,26 +479,41 @@
 
     partInput.addEventListener('keydown', function(e) {
         let items = partList.getElementsByClassName('dropdown-item');
-        if (!items || items.length === 0) return;
-
+        
         if (e.key === "ArrowDown") {
-            partCurrentFocus++;
-            addActive(items, partCurrentFocus, 'part');
+            if (items.length > 0) {
+                e.preventDefault();
+                partCurrentFocus++;
+                addActive(items, partCurrentFocus, 'part');
+            }
         } else if (e.key === "ArrowUp") {
-            partCurrentFocus--;
-            addActive(items, partCurrentFocus, 'part');
+            if (items.length > 0) {
+                e.preventDefault();
+                partCurrentFocus--;
+                addActive(items, partCurrentFocus, 'part');
+            }
         } else if (e.key === "Enter") {
             e.preventDefault();
             if (partCurrentFocus > -1 && items[partCurrentFocus]) {
                 items[partCurrentFocus].click();
             } else if (items.length > 0) {
                 items[0].click();
+            } else {
+                // 💡 讓自動帶入件號後按 Enter 可以順暢跳至「開始時間」
+                partList.style.display = 'none';
+                document.getElementById('startTime').focus();
             }
         }
     });
 
     partInput.addEventListener('blur', function() {
         setTimeout(() => { partList.style.display = 'none'; }, 200);
+    });
+
+    document.getElementById('reportForm').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+            // 避免預設行為卡住
+        }
     });
 
     document.addEventListener('click', function(e) {
@@ -528,7 +542,7 @@
         }
     }
 
-    // 表單送出與驗證（已拿掉上一筆結算時間的卡關限制）
+    // 表單送出與驗證
     document.getElementById('reportForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
