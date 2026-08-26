@@ -363,36 +363,35 @@
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
 
-    machineInput.addEventListener('input', function() {
-        const rawVal = this.value.toLowerCase();
-        const val = rawVal.replace(/[\-\s]/g, ''); 
-        
-        machineList.innerHTML = '';
-        machineCurrentFocus = -1;
-        if (!val) { machineList.style.display = 'none'; return; }
-        
-        const filtered = allMachines.filter(m => {
-            const cleanM = m.toLowerCase().replace(/[\-\s]/g, '');
-            return cleanM.includes(val);
-        });
+    machineInput.addEventListener('keydown', function(e) {
+        let items = machineList.getElementsByClassName('dropdown-item');
 
-        if (filtered.length > 0) {
-            machineList.style.display = 'block';
-            filtered.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'dropdown-item';
-                div.textContent = item;
-                div.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    machineInput.value = item;
-                    machineList.style.display = 'none';
-                    fetchLastRecord(); 
-                    document.getElementById('part').focus();
-                });
-                machineList.appendChild(div);
-            });
-        } else {
-            machineList.style.display = 'none';
+        if (e.key === "ArrowDown") {
+            if (items.length > 0) {
+                e.preventDefault();
+                machineCurrentFocus++;
+                if (machineCurrentFocus >= items.length) machineCurrentFocus = 0;
+                addActive(items, machineCurrentFocus, 'machine');
+            }
+        } else if (e.key === "ArrowUp") {
+            if (items.length > 0) {
+                e.preventDefault();
+                machineCurrentFocus--;
+                if (machineCurrentFocus < 0) machineCurrentFocus = items.length - 1;
+                addActive(items, machineCurrentFocus, 'machine');
+            }
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            // 💡 修正：如果透過上下鍵選中了某一項，或者預設有出現選項，按 Enter 就直接帶入第一項或當前選中的項
+            if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
+                items[machineCurrentFocus].mousedown(); // 觸發點擊帶入
+            } else if (items.length > 0) {
+                // 如果沒有用上下鍵移動，預設帶入下拉選單的第一個項目 (例如 YCL-20-018)
+                machineInput.value = items[0].textContent;
+                machineList.style.display = 'none';
+                fetchLastRecord();
+                document.getElementById('part').focus();
+            }
         }
     });
 
@@ -460,20 +459,20 @@
             return cleanP.includes(val);
         });
 
-        if (filtered.length > 0) {
-            partList.style.display = 'block';
+       if (filtered.length > 0) {
+            machineList.style.display = 'block';
             filtered.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                // 使用 mousedown 避免失去焦點導致字被清空
                 div.addEventListener('mousedown', function(e) {
                     e.preventDefault();
-                    partInput.value = item;
-                    partList.style.display = 'none';
-                    document.getElementById('startTime').focus();
+                    machineInput.value = item;
+                    machineList.style.display = 'none';
+                    fetchLastRecord(); 
+                    document.getElementById('part').focus();
                 });
-                partList.appendChild(div);
+                machineList.appendChild(div);
             });
         } else {
             partList.style.display = 'none';
