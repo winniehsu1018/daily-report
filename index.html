@@ -69,7 +69,7 @@
         <!-- 開始時間與結算時間 -->
         <div class="form-group">
             <label for="startTime">開始時間 (若有上一筆將自動帶入結算時間)：</label>
-            <input type="text" id="startTime" placeholder="例: 0800" maxlength="5" oninput="autoFormatTime(this, 'endTime')" onblur="validateTimeInput(this)" required>
+            <input type="text" id="startTime" placeholder="例: 0800" maxlength="5" oninput="autoFormatTime(this, 'endTime')" onblur="validateTimeInput(this)" onkeydown="jumpToNext(event, 'endTime')" required>
             <div class="time-hint">💡 輸入 4 位數字自動轉為格式（如 0800 ➔ 08:00）</div>
         </div>
 
