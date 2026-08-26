@@ -441,7 +441,7 @@
         fetchLastRecord();
     });
 
-    // 品名規格下拉選單
+// 品名規格下拉選單
     const partInput = document.getElementById('part');
     const partList = document.getElementById('partList');
     let partCurrentFocus = -1;
@@ -465,7 +465,9 @@
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                div.onclick = function() {
+                // 💡 使用 mousedown 而不是 onclick，避免點擊時觸發 blur 導致輸入被吃掉
+                div.onmousedown = function(e) {
+                    e.preventDefault(); // 防止 input 失去焦點
                     partInput.value = item;
                     partList.style.display = 'none';
                     document.getElementById('startTime').focus();
@@ -476,7 +478,7 @@
             partList.style.display = 'none';
         }
     });
-
+    
     partInput.addEventListener('keydown', function(e) {
         let items = partList.getElementsByClassName('dropdown-item');
         
