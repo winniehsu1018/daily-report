@@ -374,18 +374,34 @@
     const machineList = document.getElementById('machineList');
     let machineCurrentFocus = -1;
 
+   // ==========================================
+    // 💡 機台編號下拉選單與即時模糊搜尋（含除錯）
+    // ==========================================
+    const machineInput = document.getElementById('machine');
+    const machineList = document.getElementById('machineList');
+    let machineCurrentFocus = -1;
+
     machineInput.addEventListener('input', function() {
-        const rawVal = this.value.toLowerCase();
-        const val = rawVal.replace(/[\-\s]/g, ''); 
+        const rawVal = this.value;
+        const val = rawVal.toLowerCase().replace(/[\-\s]/g, ''); 
         
         machineList.innerHTML = '';
         machineCurrentFocus = -1;
-        if (!val) { machineList.style.display = 'none'; return; }
+        
+        console.log("目前機台輸入值:", rawVal, "清理後:", val);
+        console.log("目前系統快取的機台清單總數:", allMachines.length);
+
+        if (!val) { 
+            machineList.style.display = 'none'; 
+            return; 
+        }
         
         const filtered = allMachines.filter(m => {
             const cleanM = m.toLowerCase().replace(/[\-\s]/g, '');
             return cleanM.includes(val);
         });
+
+        console.log("過濾後的機台結果:", filtered);
 
         if (filtered.length > 0) {
             machineList.style.display = 'block';
@@ -393,14 +409,13 @@
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.textContent = item;
-                // 💡 改用 click 事件搭配 e.stopPropagation，確保手機與電腦點擊選單 100% 成功
-                div.addEventListener('click', function(e) {
-                    e.stopPropagation();
+                div.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
                     machineInput.value = item;
                     machineList.style.display = 'none';
-                    isUserTypingPart = false; 
-                    document.getElementById('part').value = ''; 
-                    document.getElementById('startTime').value = ''; 
+                    isUserTypingPart = false;
+                    document.getElementById('part').value = '';
+                    document.getElementById('startTime').value = '';
                     fetchLastRecord(); 
                     document.getElementById('part').focus();
                 });
@@ -448,6 +463,11 @@
                 document.getElementById('part').focus();
             }
         }
+    });
+
+    machineInput.addEventListener('blur', function() {
+        setTimeout(() => { machineList.style.display = 'none'; }, 200);
+        fetchLastRecord();
     });
 
     // 品名規格專用：防吃字搜尋邏輯
