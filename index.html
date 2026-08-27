@@ -324,7 +324,7 @@
             </select>
         </div>
 
-        <!-- 完成數量 (已加入 blur 監聽，點擊完成或離開自動跳到單件秒數) -->
+        <!-- 完成數量 -->
         <div class="form-group">
             <label for="qty">
                 本次完成數量 (pcs)：
@@ -340,7 +340,7 @@
             >
         </div>
 
-        <!-- 單件秒數 -->
+        <!-- 單件秒數 (已將 inputmode 改為 numeric，確保跳格時鍵盤不消失) -->
         <div class="form-group">
             <label for="unitSeconds">
                 生產回報單件工時 (S) 秒數 (無產出可不填)：
@@ -348,7 +348,7 @@
             <input
                 type="text"
                 id="unitSeconds"
-                inputmode="decimal"
+                inputmode="numeric"
                 placeholder="請輸入單件秒數 (0～300 秒)"
                 onkeydown="jumpToNext(event, 'remark')"
             >
@@ -788,7 +788,6 @@
 
     function jumpToUnitSeconds() {
         const qtyVal = document.getElementById('qty').value.trim();
-        // 只有當數量欄位有輸入內容時才自動跳下一格，避免使用者只是點過去又點回來
         if (qtyVal !== "") {
             const nextEl = document.getElementById('unitSeconds');
             if (nextEl) {
