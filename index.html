@@ -207,13 +207,15 @@
             <input
                 type="text"
                 id="date"
+                inputmode="numeric"
+                pattern="[0-9]*"
                 required
                 placeholder="例如: 0824"
                 onchange="fetchLastRecord()"
             >
         </div>
 
-        <!-- 班別 (文字已調回簡潔版，但後端支援到 18:00) -->
+        <!-- 班別 -->
         <div class="form-group">
             <label for="shift">班別：</label>
             <select
@@ -268,7 +270,7 @@
             <div id="partList" class="dropdown-list"></div>
         </div>
 
-        <!-- 開始時間 -->
+        <!-- 開始時間 (已加入 inputmode="numeric" 鎖定手機數字鍵盤) -->
         <div class="form-group">
             <label for="startTime">
                 開始時間 (若有上一筆將自動帶入結算時間)：
@@ -276,6 +278,8 @@
             <input
                 type="text"
                 id="startTime"
+                inputmode="numeric"
+                pattern="[0-9]*"
                 placeholder="例: 0800"
                 maxlength="5"
                 oninput="autoFormatTime(this, 'endTime')"
@@ -288,7 +292,7 @@
             </div>
         </div>
 
-        <!-- 結算時間 -->
+        <!-- 結算時間 (已加入 inputmode="numeric" 鎖定手機數字鍵盤) -->
         <div class="form-group">
             <label for="endTime">
                 結算時間 (有填數量或無效工時則必填)：
@@ -296,6 +300,8 @@
             <input
                 type="text"
                 id="endTime"
+                inputmode="numeric"
+                pattern="[0-9]*"
                 placeholder="例: 1700"
                 maxlength="5"
                 oninput="autoFormatEndTime(this)"
@@ -1326,7 +1332,6 @@
             }
         }
 
-        // 💡 白班文字乾淨，但後端防呆保留到 18:00 (1080分鐘) 的彈性
         if (shift === '白班') {
             const rawStart = parseMinutes(startTime, false);
             const rawEnd = endMin !== null ? parseMinutes(endTime, false) : null;
