@@ -323,7 +323,7 @@
             </select>
         </div>
 
-        <!-- 完成數量 (已改為 inputmode="numeric") -->
+        <!-- 完成數量 -->
         <div class="form-group">
             <label for="qty">
                 本次完成數量 (pcs)：
@@ -338,7 +338,7 @@
             >
         </div>
 
-        <!-- 單件秒數 (已改為 inputmode="decimal" 支援小數點與數字鍵盤) -->
+        <!-- 單件秒數 -->
         <div class="form-group">
             <label for="unitSeconds">
                 生產回報單件工時 (S) 秒數 (無產出可不填)：
@@ -794,7 +794,7 @@
 
 
     // =========================================================
-    // 結算時間格式化
+    // 結算時間格式化 (白班滿 4 碼跳數量，中班跳應有工時)
     // =========================================================
 
     function autoFormatEndTime(input) {
@@ -824,6 +824,21 @@
             }
         }
     }
+
+
+    // =========================================================
+    // 應有工時選單監聽 Enter 鍵 (中班選完跳數量)
+    // =========================================================
+
+    document.getElementById('workingHours').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const nextEl = document.getElementById('qty');
+            if (nextEl) {
+                nextEl.focus();
+            }
+        }
+    });
 
 
     // =========================================================
