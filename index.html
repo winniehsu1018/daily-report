@@ -269,7 +269,7 @@
             <div id="partList" class="dropdown-list"></div>
         </div>
 
-        <!-- 開始時間 (移除 pattern 避免瀏覽器格式衝突) -->
+        <!-- 開始時間 -->
         <div class="form-group">
             <label for="startTime">
                 開始時間 (若有上一筆將自動帶入結算時間)：
@@ -290,7 +290,7 @@
             </div>
         </div>
 
-        <!-- 結算時間 (移除 pattern 避免瀏覽器格式衝突) -->
+        <!-- 結算時間 -->
         <div class="form-group">
             <label for="endTime">
                 結算時間 (有填數量或無效工時則必填)：
@@ -323,32 +323,30 @@
             </select>
         </div>
 
-        <!-- 完成數量 -->
+        <!-- 完成數量 (已改為 inputmode="numeric") -->
         <div class="form-group">
             <label for="qty">
                 本次完成數量 (pcs)：
             </label>
             <input
-                type="number"
+                type="text"
                 id="qty"
-                min="0"
+                inputmode="numeric"
                 required
                 placeholder="請輸入完成數量 (若無產出可填 0)"
                 onkeydown="jumpToNext(event, 'unitSeconds')"
             >
         </div>
 
-        <!-- 單件秒數 -->
+        <!-- 單件秒數 (已改為 inputmode="decimal" 支援小數點與數字鍵盤) -->
         <div class="form-group">
             <label for="unitSeconds">
                 生產回報單件工時 (S) 秒數 (無產出可不填)：
             </label>
             <input
-                type="number"
-                step="0.01"
+                type="text"
                 id="unitSeconds"
-                min="0"
-                max="300"
+                inputmode="decimal"
                 placeholder="請輸入單件秒數 (0～300 秒)"
                 onkeydown="jumpToNext(event, 'remark')"
             >
@@ -383,9 +381,9 @@
                     style="margin-bottom: 0;"
                 >
                     <input
-                        type="number"
+                        type="text"
                         class="invalidMin"
-                        min="0"
+                        inputmode="numeric"
                         placeholder="請輸入分鐘數"
                     >
                 </div>
@@ -419,9 +417,9 @@
                     style="margin-bottom: 0;"
                 >
                     <input
-                        type="number"
+                        type="text"
                         class="invalidMin"
-                        min="0"
+                        inputmode="numeric"
                         placeholder="請輸入分鐘數"
                     >
                 </div>
@@ -699,9 +697,9 @@
                 style="margin-bottom: 0;"
             >
                 <input
-                    type="number"
+                    type="text"
                     class="invalidMin"
-                    min="0"
+                    inputmode="numeric"
                     placeholder="請輸入分鐘數"
                 >
             </div>
@@ -1460,9 +1458,9 @@
                     style="margin-bottom: 0;"
                 >
                     <input
-                        type="number"
+                        type="text"
                         class="invalidMin"
-                        min="0"
+                        inputmode="numeric"
                         placeholder="請輸入分鐘數"
                     >
                 </div>
@@ -1496,9 +1494,9 @@
                     style="margin-bottom: 0;"
                 >
                     <input
-                        type="number"
+                        type="text"
                         class="invalidMin"
-                        min="0"
+                        inputmode="numeric"
                         placeholder="請輸入分鐘數"
                     >
                 </div>
