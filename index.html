@@ -335,12 +335,11 @@
                 inputmode="numeric"
                 required
                 placeholder="請輸入完成數量 (若無產出可填 0)"
-                onblur="jumpToUnitSeconds()"
-                onkeydown="jumpToNext(event, 'unitSeconds')"
+                onkeydown="handleQtyKeydown(event)"
             >
         </div>
 
-        <!-- 單件秒數 (已將 inputmode 改為 numeric，確保跳格時鍵盤不消失) -->
+        <!-- 單件秒數 -->
         <div class="form-group">
             <label for="unitSeconds">
                 生產回報單件工時 (S) 秒數 (無產出可不填)：
@@ -783,15 +782,19 @@
 
 
     // =========================================================
-    // 數量填完（點擊完成或點擊其他地方）自動跳到單件秒數
+    // 數量欄位按 Enter 或確認時強制跳到單件秒數
     // =========================================================
 
-    function jumpToUnitSeconds() {
-        const qtyVal = document.getElementById('qty').value.trim();
-        if (qtyVal !== "") {
+    function handleQtyKeydown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
             const nextEl = document.getElementById('unitSeconds');
             if (nextEl) {
                 nextEl.focus();
+                // 針對手機鍵盤優化：利用 setTimeout 讓焦點穩固並重新喚醒數字鍵盤
+                setTimeout(() => {
+                    nextEl.focus();
+                }, 50);
             }
         }
     }
