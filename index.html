@@ -324,7 +324,7 @@
             </select>
         </div>
 
-        <!-- 完成數量 -->
+        <!-- 完成數量 (完全以 Enter 鍵觸發跳格) -->
         <div class="form-group">
             <label for="qty">
                 本次完成數量 (pcs)：
@@ -335,7 +335,8 @@
                 inputmode="numeric"
                 required
                 placeholder="請輸入完成數量 (若無產出可填 0)"
-                onkeydown="handleQtyKeydown(event)"
+                onkeydown="jumpToNext(event, 'unitSeconds')" 
+                onkeyup="if(event.key === 'Enter' || event.keyCode === 13) { event.preventDefault(); }"
             >
         </div>
 
@@ -759,11 +760,33 @@
     // =========================================================
 
     function jumpToNext(e, nextId) {
-        if (e.key === 'Enter') {
+        // 電腦：Enter 鍵跳下一欄
+        // 手機：鍵盤上的「下一步 / Next / 完成 / Done」通常也會觸發 Enter，
+        // 因此統一由 keydown 處理。
+        if (e.key === 'Enter' || e.keyCode === 13) {
             e.preventDefault();
+            e.stopPropagation();
+
             const nextEl = document.getElementById(nextId);
+
             if (nextEl) {
-                nextEl.focus();
+                // 先移除目前選取狀態，避免手機瀏覽器保留游標異常
+                if (document.activeElement && document.activeElement !== nextEl) {
+                    document.activeElement.blur();
+                }
+
+                // 延遲一個 event cycle，讓手機鍵盤完成目前按鍵事件後再移動焦點
+                setTimeout(() => {
+                    nextEl.focus();
+
+                    // 對部分手機瀏覽器，主動捲動到下一欄，避免焦點跑到畫面外
+                    setTimeout(() => {
+                        nextEl.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }, 50);
+                }, 0);
             }
         }
     }
@@ -777,25 +800,6 @@
         const nextEl = document.getElementById('qty');
         if (nextEl) {
             nextEl.focus();
-        }
-    }
-
-
-    // =========================================================
-    // 數量欄位按 Enter 或確認時強制跳到單件秒數
-    // =========================================================
-
-    function handleQtyKeydown(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            const nextEl = document.getElementById('unitSeconds');
-            if (nextEl) {
-                nextEl.focus();
-                // 針對手機鍵盤優化：利用 setTimeout 讓焦點穩固並重新喚醒數字鍵盤
-                setTimeout(() => {
-                    nextEl.focus();
-                }, 50);
-            }
         }
     }
 
