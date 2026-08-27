@@ -208,7 +208,6 @@
                 type="text"
                 id="date"
                 inputmode="numeric"
-                pattern="[0-9]*"
                 required
                 placeholder="例如: 0824"
                 onchange="fetchLastRecord()"
@@ -270,7 +269,7 @@
             <div id="partList" class="dropdown-list"></div>
         </div>
 
-        <!-- 開始時間 -->
+        <!-- 開始時間 (移除 pattern 避免瀏覽器格式衝突) -->
         <div class="form-group">
             <label for="startTime">
                 開始時間 (若有上一筆將自動帶入結算時間)：
@@ -279,7 +278,6 @@
                 type="text"
                 id="startTime"
                 inputmode="numeric"
-                pattern="[0-9]*"
                 placeholder="例: 0800"
                 maxlength="5"
                 oninput="autoFormatTime(this, 'endTime')"
@@ -292,7 +290,7 @@
             </div>
         </div>
 
-        <!-- 結算時間 -->
+        <!-- 結算時間 (移除 pattern 避免瀏覽器格式衝突) -->
         <div class="form-group">
             <label for="endTime">
                 結算時間 (有填數量或無效工時則必填)：
@@ -301,7 +299,6 @@
                 type="text"
                 id="endTime"
                 inputmode="numeric"
-                pattern="[0-9]*"
                 placeholder="例: 1700"
                 maxlength="5"
                 oninput="autoFormatEndTime(this)"
@@ -774,7 +771,7 @@
 
 
     // =========================================================
-    // 開始時間格式化 (改為純數字過濾，離開時自動轉格式)
+    // 開始時間格式化
     // =========================================================
 
     function autoFormatTime(input, nextId) {
@@ -799,7 +796,7 @@
 
 
     // =========================================================
-    // 結算時間格式化 (改為純數字過濾，離開時自動轉格式)
+    // 結算時間格式化
     // =========================================================
 
     function autoFormatEndTime(input) {
