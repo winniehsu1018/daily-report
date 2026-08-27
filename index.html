@@ -221,7 +221,7 @@
                 required
                 onchange="handleShiftChange(); fetchLastRecord();"
             >
-                <option value="白班">白班 (08:00 - 17:00)</option>
+                <option value="白班">白班 (08:00 - 17:00/18:00)</option>
                 <option value="中班">中班 (17:00 - 03:30)</option>
             </select>
         </div>
@@ -1309,7 +1309,6 @@
             return;
         }
 
-        // 💡 僅保留中班選 510 卻填滿 630 分鐘的防呆，移除了會卡死分段報工的總工時下限檢查
         if (endMin !== null) {
             let totalElapsedMinutes = endMin - startMin;
 
@@ -1327,12 +1326,15 @@
             }
         }
 
+        // =========================================================
+        // 💡 修改：將白班的結算時間限制延長至 18:00 (1080 分鐘)
+        // =========================================================
         if (shift === '白班') {
             const rawStart = parseMinutes(startTime, false);
             const rawEnd = endMin !== null ? parseMinutes(endTime, false) : null;
 
-            if (rawStart < 480 || rawStart > 1020 || (rawEnd !== null && (rawEnd < 480 || rawEnd > 1020))) {
-                alert("❌ 【白班】的時間範圍必須在 08:00 ～ 17:00 之間！");
+            if (rawStart < 480 || rawStart > 1080 || (rawEnd !== null && (rawEnd < 480 || rawEnd > 1080))) {
+                alert("❌ 【白班】的時間範圍必須在 08:00 ～ 18:00 之間！");
                 return;
             }
         } else if (shift === '中班') {
@@ -1429,7 +1431,7 @@
 
 
     // =========================================================
-    // 送出成功後重設表單 (恢復預設 2 個無效工時框)
+    // 送出成功後重設表單
     // =========================================================
 
     function resetFormAfterSubmit() {
