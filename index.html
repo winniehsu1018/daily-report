@@ -270,7 +270,7 @@
             <div id="partList" class="dropdown-list"></div>
         </div>
 
-        <!-- 開始時間 (已加入 inputmode="numeric" 鎖定手機數字鍵盤) -->
+        <!-- 開始時間 -->
         <div class="form-group">
             <label for="startTime">
                 開始時間 (若有上一筆將自動帶入結算時間)：
@@ -288,11 +288,11 @@
                 required
             >
             <div class="time-hint">
-                💡 輸入 4 位數字自動轉為格式（如 0800 ➔ 08:00）
+                💡 輸入 4 位數字（如 0800，離開時自動轉為 08:00）
             </div>
         </div>
 
-        <!-- 結算時間 (已加入 inputmode="numeric" 鎖定手機數字鍵盤) -->
+        <!-- 結算時間 -->
         <div class="form-group">
             <label for="endTime">
                 結算時間 (有填數量或無效工時則必填)：
@@ -308,7 +308,7 @@
                 onblur="validateTimeInput(this)"
             >
             <div class="time-hint">
-                💡 輸入 4 位數字自動轉為格式（如 1700 ➔ 17:00）
+                💡 輸入 4 位數字（如 1700，離開時自動轉為 17:00）
             </div>
         </div>
 
@@ -774,73 +774,59 @@
 
 
     // =========================================================
-    // 開始時間格式化
+    // 開始時間格式化 (改為純數字過濾，離開時自動轉格式)
     // =========================================================
 
     function autoFormatTime(input, nextId) {
         let val = input.value.replace(/\D/g, '');
+        input.value = val;
 
-        if (val.length >= 4) {
+        if (val.length === 4) {
             let hour = parseInt(val.substring(0, 2), 10);
             let minute = parseInt(val.substring(2, 4), 10);
 
-            if (hour > 23 || minute > 59) {
-                alert(`❌ 輸入的時間 (${val.substring(0, 2)}:${val.substring(2, 4)}) 無效！`);
-                input.value = '';
-                input.focus();
-                return;
-            }
-
-            input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
-
-            if (nextId) {
-                const nextEl = document.getElementById(nextId);
-                if (nextEl) {
-                    nextEl.focus();
+            if (hour <= 23 && minute <= 59) {
+                input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+                if (nextId) {
+                    const nextEl = document.getElementById(nextId);
+                    if (nextEl) {
+                        nextEl.focus();
+                    }
                 }
             }
-        } else {
-            input.value = val;
         }
     }
 
 
     // =========================================================
-    // 結算時間格式化
+    // 結算時間格式化 (改為純數字過濾，離開時自動轉格式)
     // =========================================================
 
     function autoFormatEndTime(input) {
         let val = input.value.replace(/\D/g, '');
+        input.value = val;
 
-        if (val.length >= 4) {
+        if (val.length === 4) {
             let hour = parseInt(val.substring(0, 2), 10);
             let minute = parseInt(val.substring(2, 4), 10);
 
-            if (hour > 23 || minute > 59) {
-                alert(`❌ 輸入的時間 (${val.substring(0, 2)}:${val.substring(2, 4)}) 無效！`);
-                input.value = '';
-                input.focus();
-                return;
-            }
-
-            input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
-
-            const shift = document.getElementById('shift').value;
-
-            if (shift === '白班') {
-                document.getElementById('workingHours').value = '540';
-                const nextEl = document.getElementById('qty');
-                if (nextEl) {
-                    nextEl.focus();
-                }
-            } else {
-                const nextEl = document.getElementById('workingHours');
-                if (nextEl) {
-                    nextEl.focus();
+            if (hour <= 23 && minute <= 59) {
+                input.value = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+                
+                const shift = document.getElementById('shift').value;
+                if (shift === '白班') {
+                    document.getElementById('workingHours').value = '540';
+                    const nextEl = document.getElementById('qty');
+                    if (nextEl) {
+                        nextEl.focus();
+                    }
+                } else {
+                    const nextEl = document.getElementById('workingHours');
+                    if (nextEl) {
+                        nextEl.focus();
+                    }
                 }
             }
-        } else {
-            input.value = val;
         }
     }
 
