@@ -1309,6 +1309,7 @@
             return;
         }
 
+        // 💡 僅保留中班選 510 卻填滿 630 分鐘的防呆，移除了會卡死分段報工的總工時下限檢查
         if (endMin !== null) {
             let totalElapsedMinutes = endMin - startMin;
 
@@ -1323,17 +1324,6 @@
                     document.getElementById('workingHours').focus();
                     return;
                 }
-            }
-
-            if (totalElapsedMinutes < workingHours) {
-                alert(
-                    `❌ 報工時間防呆錯誤！\n\n` +
-                    `您填寫的開始時間 (${startTime}) 到結算時間 (${endTime}) 總計經過 ${totalElapsedMinutes} 分鐘，\n` +
-                    `但您選擇的應有工時卻是 ${workingHours} 分鐘。\n\n` +
-                    `實際生產區間不可小於選擇的應有工時！`
-                );
-                document.getElementById('endTime').focus();
-                return;
             }
         }
 
