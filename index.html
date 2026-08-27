@@ -463,13 +463,10 @@
 
     let lastRecordEndTime = null;
 
-    // 使用者實際選擇的機台
     let selectedMachine = "";
 
-    // 防止 getLastRecord 舊請求覆蓋新請求
     let lastRecordRequestSeq = 0;
 
-    // 目前這一次送出的 requestId
     let currentRequestId = null;
 
 
@@ -618,7 +615,7 @@
 
 
     // =========================================================
-    // 新增無效工時 (已移除架機選項)
+    // 新增無效工時 (已移除架機)
     // =========================================================
 
     function addInvalidBox() {
@@ -1264,10 +1261,25 @@
         }
 
         // =========================================================
-        // 💡 新增：開始到結束的時間總和不可低於應有工時的防呆檢查
+        // 💡 強化版防呆：中班應有工時與實際時段嚴格對應檢查
         // =========================================================
         if (endMin !== null) {
             let totalElapsedMinutes = endMin - startMin;
+
+            if (shift === '中班') {
+                // 如果選了 510 分鐘，但時間卻填了完整的 17:00 ~ 03:30 (630分鐘)
+                if (workingHours === 510 && totalElapsedMinutes === 630) {
+                    alert(
+                        `❌ 報工時間邏輯錯誤！\n\n` +
+                        `您選擇的應有工時是 【510 分鐘】，但填寫的起訖時間 (${startTime} ~ ${endTime}) 總計是 630 分鐘。\n\n` +
+                        `若要報滿 630 分鐘，請將「應有工時」改選為 630 分鐘；\n` +
+                        `若應有工時為 510 分鐘，請調整結算時間或填寫無效工時扣除！`
+                    );
+                    document.getElementById('workingHours').focus();
+                    return;
+                }
+            }
+
             if (totalElapsedMinutes < workingHours) {
                 alert(
                     `❌ 報工時間防呆錯誤！\n\n` +
