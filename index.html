@@ -213,7 +213,7 @@
             >
         </div>
 
-        <!-- 班別 -->
+        <!-- 班別 (文字已調回簡潔版，但後端支援到 18:00) -->
         <div class="form-group">
             <label for="shift">班別：</label>
             <select
@@ -221,7 +221,7 @@
                 required
                 onchange="handleShiftChange(); fetchLastRecord();"
             >
-                <option value="白班">白班 (08:00 - 17:00/18:00)</option>
+                <option value="白班">白班 (08:00 - 17:00)</option>
                 <option value="中班">中班 (17:00 - 03:30)</option>
             </select>
         </div>
@@ -1326,9 +1326,7 @@
             }
         }
 
-        // =========================================================
-        // 💡 修改：將白班的結算時間限制延長至 18:00 (1080 分鐘)
-        // =========================================================
+        // 💡 白班文字乾淨，但後端防呆保留到 18:00 (1080分鐘) 的彈性
         if (shift === '白班') {
             const rawStart = parseMinutes(startTime, false);
             const rawEnd = endMin !== null ? parseMinutes(endTime, false) : null;
