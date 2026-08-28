@@ -760,9 +760,6 @@
     // =========================================================
 
     function jumpToNext(e, nextId) {
-        // 電腦：Enter 鍵跳下一欄
-        // 手機：鍵盤上的「下一步 / Next / 完成 / Done」通常也會觸發 Enter，
-        // 因此統一由 keydown 處理。
         if (e.key === 'Enter' || e.keyCode === 13) {
             e.preventDefault();
             e.stopPropagation();
@@ -770,16 +767,13 @@
             const nextEl = document.getElementById(nextId);
 
             if (nextEl) {
-                // 先移除目前選取狀態，避免手機瀏覽器保留游標異常
                 if (document.activeElement && document.activeElement !== nextEl) {
                     document.activeElement.blur();
                 }
 
-                // 延遲一個 event cycle，讓手機鍵盤完成目前按鍵事件後再移動焦點
                 setTimeout(() => {
                     nextEl.focus();
 
-                    // 對部分手機瀏覽器，主動捲動到下一欄，避免焦點跑到畫面外
                     setTimeout(() => {
                         nextEl.scrollIntoView({
                             behavior: 'smooth',
@@ -1263,7 +1257,9 @@
         let invalidItems = [];
         let hasNegativeInvalid = false;
         let hasInvalidConfigError = false;
+        let hasDuplicateInvalidType = false; // 💡 重複項目旗標
         let totalInvalidMinutes = 0;
+        let selectedInvalidTypes = new Set(); // 💡 用來追蹤已選過的無效工時類型
 
         invalidBoxes.forEach(box => {
             const type = box.querySelector('.invalidType').value;
@@ -1283,6 +1279,13 @@
             }
 
             if (type && type !== "無" && min > 0) {
+                // 💡 檢查是否有重複選取相同的無效工時項目
+                if (selectedInvalidTypes.has(type)) {
+                    hasDuplicateInvalidType = true;
+                } else {
+                    selectedInvalidTypes.add(type);
+                }
+
                 invalidItems.push({ type: type, min: min });
                 totalInvalidMinutes += min;
             }
@@ -1295,6 +1298,12 @@
 
         if (hasInvalidConfigError) {
             alert("❌ 無效工時填寫有誤！\n\n若要填寫無效工時，請確實選擇項目並填入大於 0 的分鐘數；\n若不填寫請將項目設為「無」且分鐘數留空。");
+            return;
+        }
+
+        // 💡 重複項目防呆提示
+        if (hasDuplicateInvalidType) {
+            alert("❌ 無效工時項目重複！\n\n相同的無效工時項目（例如：清潔、換刀等）只能選擇一次，請將相同項目的時間合併計算，或選擇不同的項目。");
             return;
         }
 
