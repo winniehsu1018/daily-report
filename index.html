@@ -368,18 +368,19 @@
 
         <!-- 應有工時 -->
         <div class="form-group">
-            <label for="workingHours">應有工時 (分鐘)：</label>
-            <select
-                id="workingHours"
-                required
-                onchange="jumpToQty()"
-                onkeydown="if(event.key === 'Enter' || event.keyCode === 13) { jumpToNext(event, 'qty'); }"
+            <label for="workingHoursDisplay">應有工時 (分鐘)：</label>
+            <input
+                type="text"
+                id="workingHoursDisplay"
+                readonly
+                placeholder="請選擇應有工時"
+                style="cursor: pointer; background-color: #fff;"
+                onclick="toggleWorkingHoursDropdown()"
+                onkeydown="handleWorkingHoursKeydown(event)"
                 disabled
             >
-                <option value="540">
-                    540 分鐘 (標準白班)
-                </option>
-            </select>
+            <input type="hidden" id="workingHours" value="540">
+            <div id="workingHoursList" class="dropdown-list"></div>
         </div>
 
         <!-- 完成數量 -->
@@ -741,7 +742,7 @@
 
     function unlockFormFields() {
         const fieldsToUnlock = [
-            'endTime', 'workingHours', 'qty', 'unitSeconds', 
+            'endTime', 'workingHoursDisplay', 'qty', 'unitSeconds', 
             'addInvalidBtn', 'remark', 'submitBtn'
         ];
 
@@ -856,7 +857,7 @@
                 }
 
                 if (data.workingHours) {
-                    document.getElementById('workingHours').value = data.workingHours;
+                    setWorkingHours(String(data.workingHours));
                 }
 
                 if (data.unitSeconds !== undefined && data.unitSeconds !== null && data.unitSeconds !== "") {
@@ -1022,18 +1023,6 @@
 
 
     // =========================================================
-    // 應有工時選定後自動跳到數量欄位
-    // =========================================================
-
-    function jumpToQty() {
-        const nextEl = document.getElementById('qty');
-        if (nextEl) {
-            nextEl.focus();
-        }
-    }
-
-
-    // =========================================================
     // 開始時間格式化
     // =========================================================
 
@@ -1075,13 +1064,13 @@
                 
                 const shift = document.getElementById('shift').value;
                 if (shift === '白班') {
-                    document.getElementById('workingHours').value = '540';
+                    setWorkingHours('540');
                     const nextEl = document.getElementById('qty');
                     if (nextEl) {
                         nextEl.focus();
                     }
                 } else {
-                    const nextEl = document.getElementById('workingHours');
+                    const nextEl = document.getElementById('workingHoursDisplay');
                     if (nextEl) {
                         nextEl.focus();
                     }
@@ -1360,33 +1349,99 @@
         if (!partInput.contains(e.target)) {
             partList.style.display = 'none';
         }
+        if (!document.getElementById('workingHoursDisplay').contains(e.target)) {
+            document.getElementById('workingHoursList').style.display = 'none';
+        }
     });
 
 
     // =========================================================
-    // 班別切換 (中班選項：510 在前、630 在後)
+    // 應有工時自訂選單與方向鍵控制邏輯
+    // =========================================================
+
+    function setWorkingHours(val) {
+        document.getElementById('workingHours').value = val;
+        const display = document.getElementById('workingHoursDisplay');
+        if (val === '540') {
+            display.value = '540 分鐘 (標準白班)';
+        } else if (val === '510') {
+            display.value = '510 分鐘';
+        } else if (val === '630') {
+            display.value = '630 分鐘';
+        }
+    }
+
+    function toggleWorkingHoursDropdown() {
+        const list = document.getElementById('workingHoursList');
+        const shift = document.getElementById('shift').value;
+        list.innerHTML = '';
+
+        if (shift === '白班') {
+            return; // 白班只有一個選項，不需要選單
+        }
+
+        // 中班選項：項目1 = 510，項目2 = 630
+        const options = [
+            { val: '510', text: '510 分鐘' },
+            { val: '630', text: '630 分鐘' }
+        ];
+
+        options.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'dropdown-item';
+            div.textContent = opt.text;
+            div.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                setWorkingHours(opt.val);
+                list.style.display = 'none';
+                document.getElementById('qty').focus();
+            });
+            list.appendChild(div);
+        });
+
+        list.style.display = list.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function handleWorkingHoursKeydown(e) {
+        const shift = document.getElementById('shift').value;
+        if (shift === '白班') {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                jumpToNext(e, 'qty');
+            }
+            return;
+        }
+
+        const currentVal = document.getElementById('workingHours').value;
+
+        // 核心要求：按「下」鍵 = 510 分鐘，按「上」鍵 = 630 分鐘
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setWorkingHours('510');
+            document.getElementById('workingHoursList').style.display = 'none';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setWorkingHours('630');
+            document.getElementById('workingHoursList').style.display = 'none';
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('workingHoursList').style.display = 'none';
+            jumpToNext(e, 'qty');
+        }
+    }
+
+
+    // =========================================================
+    // 班別切換
     // =========================================================
 
     function handleShiftChange() {
         const shift = document.getElementById('shift').value;
-        const whSelect = document.getElementById('workingHours');
-
-        whSelect.innerHTML = '';
 
         if (shift === '白班') {
-            let opt = document.createElement('option');
-            opt.value = '540';
-            opt.textContent = '540 分鐘 (標準白班)';
-            whSelect.appendChild(opt);
+            setWorkingHours('540');
         } else if (shift === '中班') {
-            let opt1 = document.createElement('option');
-            opt1.value = '510';
-            opt1.textContent = '510 分鐘';
-            let opt2 = document.createElement('option');
-            opt2.value = '630';
-            opt2.textContent = '630 分鐘';
-            whSelect.appendChild(opt1); // 預設第一項 (按「下」鍵會移到這)
-            whSelect.appendChild(opt2); // 第二項 (按「上」鍵會移到這)
+            setWorkingHours('510'); // 預設 510 
         }
     }
 
@@ -1580,7 +1635,7 @@
                         `若要報滿 630 分鐘，請將「應有工時」改選為 630 分鐘；\n` +
                         `若應有工時為 510 分鐘，請調整結算時間或填寫無效工時扣除！`
                     );
-                    document.getElementById('workingHours').focus();
+                    document.getElementById('workingHoursDisplay').focus();
                     return;
                 }
             }
@@ -1712,7 +1767,7 @@
 
         // 重新鎖定結算時間之後的後續欄位
         const fieldsToLock = [
-            'endTime', 'workingHours', 'qty', 'unitSeconds', 'addInvalidBtn', 
+            'endTime', 'workingHoursDisplay', 'qty', 'unitSeconds', 'addInvalidBtn', 
             'remark', 'submitBtn'
         ];
         fieldsToLock.forEach(id => {
