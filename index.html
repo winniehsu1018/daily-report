@@ -305,8 +305,8 @@
         <div class="form-group">
             <label>班別 (請點選)：<span style="color: red;">*</span></label>
             <div class="shift-container">
-                <button type="button" id="dayShiftBtn" class="shift-btn" onclick="selectShift('白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
-                <button type="button" id="nightShiftBtn" class="shift-btn" onclick="selectShift('中班')">🌙 中班<br><span style="font-size:12px;">(17:00 - 03:30)</span></button>
+                <button type="button" id="dayShiftBtn" class="shift-btn" tabindex="0" onclick="selectShift('白班')" onkeydown="handleShiftKeydown(event, '白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
+                <button type="button" id="nightShiftBtn" class="shift-btn" tabindex="0" onclick="selectShift('中班')" onkeydown="handleShiftKeydown(event, '中班')">🌙 中班<br><span style="font-size:12px;">(17:00 - 03:30)</span></button>
             </div>
             <input type="hidden" id="shift" required value="">
         </div>
@@ -643,6 +643,38 @@
 
 
     // =========================================================
+    // 班別按鈕鍵盤左右切換與 Enter 跳格
+    // =========================================================
+
+    function handleShiftKeydown(e, currentShift) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const targetShift = currentShift === '白班' ? '中班' : '白班';
+            selectShift(targetShift);
+
+            const targetBtn = targetShift === '白班' ? document.getElementById('dayShiftBtn') : document.getElementById('nightShiftBtn');
+            if (targetBtn) {
+                targetBtn.focus();
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            selectShift(currentShift);
+
+            const nextEl = document.getElementById('part');
+            if (nextEl) {
+                nextEl.focus();
+                setTimeout(() => {
+                    nextEl.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }, 50);
+            }
+        }
+    }
+
+
+    // =========================================================
     // 解鎖表單欄位 (結算時間之後的欄位)
     // =========================================================
 
@@ -777,6 +809,20 @@
                 setTimeout(() => {
                     hintEl.style.display = 'none';
                 }, 4000);
+
+                // 自動帶入後跳至空白欄位
+                setTimeout(() => {
+                    const endTimeEl = document.getElementById('endTime');
+                    const qtyEl = document.getElementById('qty');
+
+                    let targetField = (!endTimeEl.value.trim()) ? endTimeEl : qtyEl;
+                    
+                    if (targetField) {
+                        targetField.focus();
+                        targetField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+
             } else {
                 lastRecordEndTime = null;
                 hintEl.style.display = 'none';
@@ -1576,7 +1622,7 @@
 
 
     // =========================================================
-    // 送出成功後重設表單 (重新鎖定後續欄位)
+    // 送出成功後重設表單 (回到機台欄位)
     // =========================================================
 
     function resetFormAfterSubmit() {
@@ -1677,7 +1723,13 @@
         `;
 
         checkAddButtonState();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // 焦點與視窗回到機台欄位，方便連續輸入
+        machineInput.focus();
+        machineInput.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
     }
 
 </script>
