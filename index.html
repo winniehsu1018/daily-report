@@ -324,7 +324,7 @@
             </select>
         </div>
 
-        <!-- 完成數量 (完全以 Enter 鍵觸發跳格) -->
+        <!-- 完成數量 (自動過濾非數字與負號) -->
         <div class="form-group">
             <label for="qty">
                 本次完成數量 (pcs)：
@@ -335,9 +335,13 @@
                 inputmode="numeric"
                 required
                 placeholder="請輸入完成數量 (若無產出可填 0)"
+                oninput="this.value = this.value.replace(/\D/g, '')"
                 onkeydown="jumpToNext(event, 'unitSeconds')" 
                 onkeyup="if(event.key === 'Enter' || event.keyCode === 13) { event.preventDefault(); }"
             >
+            <div class="time-hint">
+                💡 只能輸入純數字，系統會自動過濾符號
+            </div>
         </div>
 
         <!-- 單件秒數 -->
@@ -1368,7 +1372,6 @@
             const adjStartMin = startMin;
             const adjEndMin = endMin !== null ? parseMinutes(endTime, true) : null;
 
-            // 💡 修改處：將起頭從 1020 (17:00) 改為 960 (16:00)
             if (adjStartMin < 960 || adjStartMin > 1650 || (adjEndMin !== null && (adjEndMin > 1650 || adjStartMin > adjEndMin))) {
                 alert("❌ 【中班】的時間範圍必須在 16:00 ～ 03:30 跨夜範圍內！");
                 return;
