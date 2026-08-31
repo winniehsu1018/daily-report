@@ -1412,8 +1412,6 @@
             return;
         }
 
-        const currentVal = document.getElementById('workingHours').value;
-
         // 核心要求：按「下」鍵 = 510 分鐘，按「上」鍵 = 630 分鐘
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -1432,7 +1430,7 @@
 
 
     // =========================================================
-    // 班別切換
+    // 班別切換 (選中班時自動設為 510)
     // =========================================================
 
     function handleShiftChange() {
@@ -1441,7 +1439,7 @@
         if (shift === '白班') {
             setWorkingHours('540');
         } else if (shift === '中班') {
-            setWorkingHours('510'); // 預設 510 
+            setWorkingHours('510');
         }
     }
 
