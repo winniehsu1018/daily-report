@@ -55,6 +55,13 @@
             font-size: 16px;
         }
 
+        /* 停用狀態的樣式 */
+        input:disabled, select:disabled {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+            color: #6c757d;
+        }
+
         /* 班別按鈕樣式 */
         .shift-container {
             display: flex;
@@ -117,7 +124,7 @@
             background-color: #e0e0e0;
         }
 
-        button {
+        button[type="submit"], .btn-add {
             width: 100%;
             background: #007bff;
             color: white;
@@ -129,7 +136,7 @@
             margin-top: 10px;
         }
 
-        button:hover {
+        button[type="submit"]:hover, .btn-add:hover {
             background: #0056b3;
         }
 
@@ -250,15 +257,26 @@
             >
         </div>
 
-        <!-- 機台編號 -->
+        <!-- 班別 (按鈕點選強迫選取 - 放在最上方解鎖用) -->
+        <div class="form-group">
+            <label>班別 (請先點選以解鎖下方欄位)：<span style="color: red;">*</span></label>
+            <div class="shift-container">
+                <button type="button" id="dayShiftBtn" class="shift-btn" onclick="selectShift('白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
+                <button type="button" id="nightShiftBtn" class="shift-btn" onclick="selectShift('中班')">🌙 中班<br><span style="font-size:12px;">(16:30 - 03:30)</span></button>
+            </div>
+            <input type="hidden" id="shift" required value="">
+        </div>
+
+        <!-- 機台編號 (預設鎖定) -->
         <div class="form-group">
             <label for="machine">機台編號：</label>
             <input
                 type="text"
                 id="machine"
                 required
-                placeholder="輸入關鍵字搜尋機台..."
+                placeholder="請先選擇上方班別..."
                 autocomplete="off"
+                disabled
             >
             <div id="machineList" class="dropdown-list"></div>
             <div class="machine-hint">
@@ -279,30 +297,21 @@
             </div>
         </div>
 
-        <!-- 班別 (按鈕點選強迫選取) -->
-        <div class="form-group">
-            <label>班別 (請點選)：</label>
-            <div class="shift-container">
-                <button type="button" id="dayShiftBtn" class="shift-btn" onclick="selectShift('白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
-                <button type="button" id="nightShiftBtn" class="shift-btn" onclick="selectShift('中班')">🌙 中班<br><span style="font-size:12px;">(16:30 - 03:30)</span></button>
-            </div>
-            <input type="hidden" id="shift" required value="">
-        </div>
-
-        <!-- 品名規格 -->
+        <!-- 品名規格 (預設鎖定) -->
         <div class="form-group">
             <label for="part">品名規格 / 加工工序：</label>
             <input
                 type="text"
                 id="part"
                 required
-                placeholder="輸入關鍵字搜尋品名..."
+                placeholder="請先選擇上方班別..."
                 autocomplete="off"
+                disabled
             >
             <div id="partList" class="dropdown-list"></div>
         </div>
 
-        <!-- 開始時間 -->
+        <!-- 開始時間 (預設鎖定) -->
         <div class="form-group">
             <label for="startTime">
                 開始時間 (若有上一筆將自動帶入結算時間)：
@@ -317,13 +326,14 @@
                 onblur="validateTimeInput(this)"
                 onkeydown="jumpToNext(event, 'endTime')"
                 required
+                disabled
             >
             <div class="time-hint">
                 💡 輸入 4 位數字（如 0800，離開時自動轉為 08:00）
             </div>
         </div>
 
-        <!-- 結算時間 -->
+        <!-- 結算時間 (預設鎖定) -->
         <div class="form-group">
             <label for="endTime">
                 結算時間 (有填數量或無效工時則必填)：
@@ -336,13 +346,14 @@
                 maxlength="5"
                 oninput="autoFormatEndTime(this)"
                 onblur="validateTimeInput(this)"
+                disabled
             >
             <div class="time-hint">
                 💡 輸入 4 位數字（如 1700，離開時自動轉為 17:00）
             </div>
         </div>
 
-        <!-- 應有工時 -->
+        <!-- 應有工時 (預設鎖定) -->
         <div class="form-group">
             <label for="workingHours">應有工時 (分鐘)：</label>
             <select
@@ -350,6 +361,7 @@
                 required
                 onchange="jumpToQty()"
                 onkeydown="jumpToNext(event, 'qty')"
+                disabled
             >
                 <option value="540">
                     540 分鐘 (標準白班)
@@ -357,7 +369,7 @@
             </select>
         </div>
 
-        <!-- 完成數量 (自動過濾非數字與負號) -->
+        <!-- 完成數量 (預設鎖定) -->
         <div class="form-group">
             <label for="qty">
                 本次完成數量 (pcs)：
@@ -371,13 +383,14 @@
                 oninput="this.value = this.value.replace(/\D/g, '')"
                 onkeydown="jumpToNext(event, 'unitSeconds')" 
                 onkeyup="if(event.key === 'Enter' || event.keyCode === 13) { event.preventDefault(); }"
+                disabled
             >
             <div class="time-hint">
                 💡 只能輸入純數字，系統會自動過濾符號
             </div>
         </div>
 
-        <!-- 單件秒數 -->
+        <!-- 單件秒數 (預設鎖定) -->
         <div class="form-group">
             <label for="unitSeconds">
                 生產回報單件工時 (S) 秒數 (無產出可不填)：
@@ -388,6 +401,7 @@
                 inputmode="numeric"
                 placeholder="請輸入單件秒數 (0～300 秒)"
                 onkeydown="jumpToNext(event, 'remark')"
+                disabled
             >
             <div class="time-hint">
                 💡 單件工時範圍：0～300 秒
@@ -405,7 +419,7 @@
                     class="form-group"
                     style="margin-top: 8px; margin-bottom: 8px;"
                 >
-                    <select class="invalidType">
+                    <select class="invalidType" disabled>
                         <option value="">無</option>
                         <option value="換刀">換刀</option>
                         <option value="清潔">清潔</option>
@@ -424,6 +438,7 @@
                         class="invalidMin"
                         inputmode="numeric"
                         placeholder="請輸入分鐘數"
+                        disabled
                     />
                 </div>
             </div>
@@ -434,6 +449,7 @@
                     type="button"
                     class="btn-remove"
                     onclick="removeInvalidBox(this)"
+                    disabled
                 >
                     刪除
                 </button>
@@ -441,7 +457,7 @@
                     class="form-group"
                     style="margin-top: 8px; margin-bottom: 8px;"
                 >
-                    <select class="invalidType">
+                    <select class="invalidType" disabled>
                         <option value="">無</option>
                         <option value="換刀">換刀</option>
                         <option value="清潔">清潔</option>
@@ -460,6 +476,7 @@
                         class="invalidMin"
                         inputmode="numeric"
                         placeholder="請輸入分鐘數"
+                        disabled
                     />
                 </div>
             </div>
@@ -470,6 +487,7 @@
             class="btn-add"
             id="addInvalidBtn"
             onclick="addInvalidBox()"
+            disabled
         >
             ＋ 新增無效工時項目
         </button>
@@ -486,6 +504,7 @@
                 type="text"
                 id="remark"
                 placeholder="如有特殊狀況請填寫"
+                disabled
             >
         </div>
 
@@ -493,6 +512,7 @@
         <button
             type="submit"
             id="submitBtn"
+            disabled
         >
             確認送出
         </button>
@@ -558,14 +578,13 @@
         document.getElementById('date').value = mm + dd;
 
         fetchOptions();
-        // 初始化不預設班別，要求使用者手動點選
         initializeLiff();
         checkAddButtonState();
     };
 
 
     // =========================================================
-    // 點選班別按鈕邏輯
+    // 點選班別按鈕邏輯 (同時解鎖後續欄位)
     // =========================================================
 
     function selectShift(shiftName) {
@@ -582,8 +601,38 @@
             nightBtn.className = 'shift-btn active-night';
         }
 
+        // 解鎖下方所有欄位與按鈕
+        unlockFormFields();
+
         handleShiftChange();
         fetchLastRecord();
+    }
+
+
+    // =========================================================
+    // 解鎖表單欄位
+    // =========================================================
+
+    function unlockFormFields() {
+        const fieldsToUnlock = [
+            'machine', 'part', 'startTime', 'endTime', 
+            'workingHours', 'qty', 'unitSeconds', 'addInvalidBtn', 
+            'remark', 'submitBtn'
+        ];
+
+        fieldsToUnlock.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = false;
+        });
+
+        // 解鎖動態無效工時方塊內的欄位
+        document.querySelectorAll('.invalidType, .invalidMin, .btn-remove').forEach(el => {
+            el.disabled = false;
+        });
+
+        // 更改機台與品名提示文字
+        document.getElementById('machine').placeholder = "輸入關鍵字搜尋機台...";
+        document.getElementById('part').placeholder = "輸入關鍵字搜尋品名...";
     }
 
 
@@ -1280,7 +1329,7 @@
 
         const shift = document.getElementById('shift').value;
         if (!shift) {
-            alert("❌ 請先選擇班別（白班或中班）！");
+            alert("❌ 請先點選班別（白班或中班）！");
             return;
         }
 
@@ -1516,14 +1565,14 @@
                 "資料可能已經寫入試算表，也可能尚未寫入。\n\n" +
                 "請先不要重新填寫資料。\n\n" +
                 "Request ID：\n" + currentRequestId + "\n\n" +
-                "若後端有啟用 Request ID 防重複機制，可以使用相同 Request ID 再次送出以確認結果。"
+                "若後端有啟用 Request ID 重複機制，可以使用相同 Request ID 再次送出以確認結果。"
             );
         });
     });
 
 
     // =========================================================
-    // 送出成功後重設表單
+    // 送出成功後重設表單 (重新鎖定欄位)
     // =========================================================
 
     function resetFormAfterSubmit() {
@@ -1545,6 +1594,20 @@
         document.getElementById('dayShiftBtn').className = 'shift-btn';
         document.getElementById('nightShiftBtn').className = 'shift-btn';
 
+        // 重新鎖定所有後續欄位
+        const fieldsToLock = [
+            'machine', 'part', 'startTime', 'endTime', 
+            'workingHours', 'qty', 'unitSeconds', 'addInvalidBtn', 
+            'remark', 'submitBtn'
+        ];
+        fieldsToLock.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = true;
+        });
+
+        document.getElementById('machine').placeholder = "請先選擇上方班別...";
+        document.getElementById('part').placeholder = "請先選擇上方班別...";
+
         document.getElementById('requestHint').style.display = 'none';
         document.getElementById('machineError').style.display = 'none';
 
@@ -1556,7 +1619,7 @@
                     class="form-group"
                     style="margin-top: 8px; margin-bottom: 8px;"
                 >
-                    <select class="invalidType">
+                    <select class="invalidType" disabled>
                         <option value="">無</option>
                         <option value="換刀">換刀</option>
                         <option value="清潔">清潔</option>
@@ -1575,6 +1638,7 @@
                         class="invalidMin"
                         inputmode="numeric"
                         placeholder="請輸入分鐘數"
+                        disabled
                     />
                 </div>
             </div>
@@ -1585,6 +1649,7 @@
                     type="button"
                     class="btn-remove"
                     onclick="removeInvalidBox(this)"
+                    disabled
                 >
                     刪除
                 </button>
@@ -1592,7 +1657,7 @@
                     class="form-group"
                     style="margin-top: 8px; margin-bottom: 8px;"
                 >
-                    <select class="invalidType">
+                    <select class="invalidType" disabled>
                         <option value="">無</option>
                         <option value="換刀">換刀</option>
                         <option value="清潔">清潔</option>
@@ -1611,13 +1676,15 @@
                         class="invalidMin"
                         inputmode="numeric"
                         placeholder="請輸入分鐘數"
+                        disabled
                     />
                 </div>
             </div>
         `;
 
         checkAddButtonState();
-        machineInput.focus();
+        // 焦點拉回最上方讓使用者重新點選班別
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
 </script>
