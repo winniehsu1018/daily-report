@@ -55,6 +55,42 @@
             font-size: 16px;
         }
 
+        /* 班別按鈕樣式 */
+        .shift-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .shift-btn {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: 2px solid #ccc;
+            background: #f8f9fa;
+            color: #555;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 0;
+        }
+
+        .shift-btn:hover {
+            background: #e2e6ea;
+        }
+
+        .shift-btn.active-day {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+
+        .shift-btn.active-night {
+            background: #fd7e14;
+            color: white;
+            border-color: #e8590c;
+        }
+
         .dropdown-list {
             position: absolute;
             top: 100%;
@@ -214,7 +250,7 @@
             >
         </div>
 
-        <!-- 機台編號 (移至班別上方) -->
+        <!-- 機台編號 -->
         <div class="form-group">
             <label for="machine">機台編號：</label>
             <input
@@ -243,17 +279,14 @@
             </div>
         </div>
 
-        <!-- 班別 -->
+        <!-- 班別 (按鈕點選強迫選取) -->
         <div class="form-group">
-            <label for="shift">班別：</label>
-            <select
-                id="shift"
-                required
-                onchange="handleShiftChange(); fetchLastRecord();"
-            >
-                <option value="白班">白班 (08:00 - 17:00)</option>
-                <option value="中班">中班 (16:00 - 03:30)</option>
-            </select>
+            <label>班別 (請點選)：</label>
+            <div class="shift-container">
+                <button type="button" id="dayShiftBtn" class="shift-btn" onclick="selectShift('白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
+                <button type="button" id="nightShiftBtn" class="shift-btn" onclick="selectShift('中班')">🌙 中班<br><span style="font-size:12px;">(16:30 - 03:30)</span></button>
+            </div>
+            <input type="hidden" id="shift" required value="">
         </div>
 
         <!-- 品名規格 -->
@@ -525,10 +558,33 @@
         document.getElementById('date').value = mm + dd;
 
         fetchOptions();
-        handleShiftChange();
+        // 初始化不預設班別，要求使用者手動點選
         initializeLiff();
         checkAddButtonState();
     };
+
+
+    // =========================================================
+    // 點選班別按鈕邏輯
+    // =========================================================
+
+    function selectShift(shiftName) {
+        document.getElementById('shift').value = shiftName;
+
+        const dayBtn = document.getElementById('dayShiftBtn');
+        const nightBtn = document.getElementById('nightShiftBtn');
+
+        if (shiftName === '白班') {
+            dayBtn.className = 'shift-btn active-day';
+            nightBtn.className = 'shift-btn';
+        } else {
+            dayBtn.className = 'shift-btn';
+            nightBtn.className = 'shift-btn active-night';
+        }
+
+        handleShiftChange();
+        fetchLastRecord();
+    }
 
 
     // =========================================================
@@ -1222,6 +1278,12 @@
             return;
         }
 
+        const shift = document.getElementById('shift').value;
+        if (!shift) {
+            alert("❌ 請先選擇班別（白班或中班）！");
+            return;
+        }
+
         const machine = machineInput.value.trim();
         if (!machine || !selectedMachine || machine !== selectedMachine) {
             document.getElementById('machineError').style.display = 'block';
@@ -1230,7 +1292,6 @@
             return;
         }
 
-        const shift = document.getElementById('shift').value;
         const startTime = document.getElementById('startTime').value.trim();
         const endTime = document.getElementById('endTime').value.trim();
         const qtyInput = document.getElementById('qty').value.trim();
@@ -1373,7 +1434,7 @@
             const adjEndMin = endMin !== null ? parseMinutes(endTime, true) : null;
 
             if (adjStartMin < 960 || adjStartMin > 1650 || (adjEndMin !== null && (adjEndMin > 1650 || adjStartMin > adjEndMin))) {
-                alert("❌ 【中班】的時間範圍必須在 16:00 ～ 03:30 跨夜範圍內！");
+                alert("❌ 【中班】的時間範圍必須在 16:30 ～ 03:30 跨夜範圍內！");
                 return;
             }
         }
@@ -1478,6 +1539,11 @@
         isUserTypingPart = false;
         lastRecordEndTime = null;
         currentRequestId = null;
+
+        // 重設班別按鈕狀態
+        document.getElementById('shift').value = '';
+        document.getElementById('dayShiftBtn').className = 'shift-btn';
+        document.getElementById('nightShiftBtn').className = 'shift-btn';
 
         document.getElementById('requestHint').style.display = 'none';
         document.getElementById('machineError').style.display = 'none';
