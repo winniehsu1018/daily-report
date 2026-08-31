@@ -223,7 +223,7 @@
                 onchange="handleShiftChange(); fetchLastRecord();"
             >
                 <option value="白班">白班 (08:00 - 17:00)</option>
-                <option value="中班">中班 (17:00 - 03:30)</option>
+                <option value="中班">中班 (16:00 - 03:30)</option>
             </select>
         </div>
 
@@ -1257,9 +1257,9 @@
         let invalidItems = [];
         let hasNegativeInvalid = false;
         let hasInvalidConfigError = false;
-        let hasDuplicateInvalidType = false; // 💡 重複項目旗標
+        let hasDuplicateInvalidType = false;
         let totalInvalidMinutes = 0;
-        let selectedInvalidTypes = new Set(); // 💡 用來追蹤已選過的無效工時類型
+        let selectedInvalidTypes = new Set();
 
         invalidBoxes.forEach(box => {
             const type = box.querySelector('.invalidType').value;
@@ -1279,7 +1279,6 @@
             }
 
             if (type && type !== "無" && min > 0) {
-                // 💡 檢查是否有重複選取相同的無效工時項目
                 if (selectedInvalidTypes.has(type)) {
                     hasDuplicateInvalidType = true;
                 } else {
@@ -1301,7 +1300,6 @@
             return;
         }
 
-        // 💡 重複項目防呆提示
         if (hasDuplicateInvalidType) {
             alert("❌ 無效工時項目重複！\n\n相同的無效工時項目（例如：清潔、換刀等）只能選擇一次，請將相同項目的時間合併計算，或選擇不同的項目。");
             return;
@@ -1370,8 +1368,9 @@
             const adjStartMin = startMin;
             const adjEndMin = endMin !== null ? parseMinutes(endTime, true) : null;
 
-            if (adjStartMin < 1020 || adjStartMin > 1650 || (adjEndMin !== null && (adjEndMin > 1650 || adjStartMin > adjEndMin))) {
-                alert("❌ 【中班】的時間範圍必須在 17:00 ～ 03:30 跨夜範圍內！");
+            // 💡 修改處：將起頭從 1020 (17:00) 改為 960 (16:00)
+            if (adjStartMin < 960 || adjStartMin > 1650 || (adjEndMin !== null && (adjEndMin > 1650 || adjStartMin > adjEndMin))) {
+                alert("❌ 【中班】的時間範圍必須在 16:00 ～ 03:30 跨夜範圍內！");
                 return;
             }
         }
