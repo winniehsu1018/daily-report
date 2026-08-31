@@ -411,13 +411,13 @@
             <input
                 type="text"
                 id="unitSeconds"
-                inputmode="numeric"
-                placeholder="請輸入單件秒數 (0～300 秒)"
+                inputmode="decimal"
+                placeholder="請輸入單件秒數 (可至小數點第一位，0～300)"
                 onkeydown="jumpToNext(event, 'remark')"
                 disabled
             >
             <div class="time-hint">
-                💡 單件工時範圍：0～300 秒
+                💡 單件工時範圍：0～300 秒（支援至小數點第一位）
             </div>
         </div>
 
@@ -1458,7 +1458,7 @@
         }
 
         const unitSecondsInput = document.getElementById('unitSeconds').value.trim();
-        const unitSeconds = unitSecondsInput !== "" ? Number(unitSecondsInput) : 0;
+        const unitSeconds = unitSecondsInput !== "" ? Number(Number(unitSecondsInput).toFixed(1)) : 0;
 
         if (unitSecondsInput !== "" && (isNaN(unitSeconds) || unitSeconds < 0 || unitSeconds > 300)) {
             alert("❌ 單件工時秒數必須介於 0～300 秒！");
