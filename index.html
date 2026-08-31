@@ -82,7 +82,7 @@
             margin-top: 0;
         }
 
-        .shift-btn:hover {
+        .shift-btn:hover:not(:disabled) {
             background: #e2e6ea;
         }
 
@@ -269,7 +269,7 @@
             >
             <div id="machineList" class="dropdown-list"></div>
             <div class="machine-hint">
-                💡 請從下方清單選擇機台，選擇後將自動撈取上一筆資料
+                💡 請從下方清單選擇機台，選擇後將自動解鎖班別並撈取上一筆資料
             </div>
             <div
                 class="machine-error"
@@ -286,7 +286,7 @@
             </div>
         </div>
 
-        <!-- 班別 (選完機台後點選) -->
+        <!-- 班別 (選完機台後才能點選) -->
         <div class="form-group">
             <label>班別 (請點選)：<span style="color: red;">*</span></label>
             <div class="shift-container">
@@ -603,7 +603,7 @@
         document.getElementById('dayShiftBtn').disabled = false;
         document.getElementById('nightShiftBtn').disabled = false;
 
-        // 如果已經有選過班別，就直接撈取上一筆資料
+        // 如果已經有選過班別，就立刻撈取上一筆資料
         if (document.getElementById('shift').value) {
             fetchLastRecord();
         }
@@ -1109,6 +1109,8 @@
                 selectMachine(items[machineCurrentFocus].textContent);
             } else if (items.length > 0) {
                 selectMachine(items[0].textContent);
+            } else if (allMachines.includes(machineInput.value.trim())) {
+                selectMachine(machineInput.value.trim());
             }
         }
     });
