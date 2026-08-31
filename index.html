@@ -373,7 +373,7 @@
                 id="workingHours"
                 required
                 onchange="jumpToQty()"
-                onkeydown="jumpToNext(event, 'qty')"
+                onkeydown="if(event.key === 'Enter' || event.keyCode === 13) { jumpToNext(event, 'qty'); }"
                 disabled
             >
                 <option value="540">
@@ -1364,7 +1364,7 @@
 
 
     // =========================================================
-    // 班別切換 (修改中班選項順序：510 在前、630 在後)
+    // 班別切換 (中班選項：510 在前、630 在後)
     // =========================================================
 
     function handleShiftChange() {
