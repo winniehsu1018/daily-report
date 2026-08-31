@@ -82,7 +82,7 @@
             margin-top: 0;
         }
 
-        .shift-btn:hover:not(:disabled) {
+        .shift-btn:hover {
             background: #e2e6ea;
         }
 
@@ -257,7 +257,7 @@
             >
         </div>
 
-        <!-- 機台編號 (最優先填寫) -->
+        <!-- 機台編號 (隨時可填) -->
         <div class="form-group">
             <label for="machine">機台編號：<span style="color: red;">*</span></label>
             <input
@@ -269,7 +269,7 @@
             >
             <div id="machineList" class="dropdown-list"></div>
             <div class="machine-hint">
-                💡 請從下方清單選擇機台，選擇後將自動解鎖班別並撈取上一筆資料
+                💡 請從下方清單選擇機台，選擇後將自動撈取上一筆資料
             </div>
             <div
                 class="machine-error"
@@ -286,31 +286,30 @@
             </div>
         </div>
 
-        <!-- 班別 (選完機台後才能點選) -->
+        <!-- 班別 (隨時可點) -->
         <div class="form-group">
             <label>班別 (請點選)：<span style="color: red;">*</span></label>
             <div class="shift-container">
-                <button type="button" id="dayShiftBtn" class="shift-btn" onclick="selectShift('白班')" disabled>☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
-                <button type="button" id="nightShiftBtn" class="shift-btn" onclick="selectShift('中班')" disabled>🌙 中班<br><span style="font-size:12px;">(16:30 - 03:30)</span></button>
+                <button type="button" id="dayShiftBtn" class="shift-btn" onclick="selectShift('白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
+                <button type="button" id="nightShiftBtn" class="shift-btn" onclick="selectShift('中班')">🌙 中班<br><span style="font-size:12px;">(16:30 - 03:30)</span></button>
             </div>
             <input type="hidden" id="shift" required value="">
         </div>
 
-        <!-- 品名規格 (預設鎖定) -->
+        <!-- 品名規格 (隨時可填) -->
         <div class="form-group">
             <label for="part">品名規格 / 加工工序：</label>
             <input
                 type="text"
                 id="part"
                 required
-                placeholder="請先選擇機台與班別..."
+                placeholder="輸入關鍵字搜尋品名..."
                 autocomplete="off"
-                disabled
             >
             <div id="partList" class="dropdown-list"></div>
         </div>
 
-        <!-- 開始時間 (預設鎖定) -->
+        <!-- 開始時間 (隨時可填) -->
         <div class="form-group">
             <label for="startTime">
                 開始時間 (若有上一筆將自動帶入結算時間)：
@@ -325,14 +324,13 @@
                 onblur="validateTimeInput(this)"
                 onkeydown="jumpToNext(event, 'endTime')"
                 required
-                disabled
             >
             <div class="time-hint">
                 💡 輸入 4 位數字（如 0800，離開時自動轉為 08:00）
             </div>
         </div>
 
-        <!-- 結算時間 (預設鎖定) -->
+        <!-- 結算時間 (預設鎖定，選完或開始填寫時解鎖) -->
         <div class="form-group">
             <label for="endTime">
                 結算時間 (有填數量或無效工時則必填)：
@@ -407,7 +405,7 @@
             </div>
         </div>
 
-        <!-- 動態無效工時 (預設 2 個) -->
+        <!-- 動態無效工時 (預設 2 個，預設鎖定) -->
         <label>
             無效工時項目 (選填，最多 4 項)：
         </label>
@@ -491,7 +489,7 @@
             ＋ 新增無效工時項目
         </button>
 
-        <!-- 備註 -->
+        <!-- 備註 (預設鎖定) -->
         <div
             class="form-group"
             style="margin-top: 15px;"
@@ -507,7 +505,7 @@
             >
         </div>
 
-        <!-- 送出 -->
+        <!-- 送出 (預設鎖定) -->
         <button
             type="submit"
             id="submitBtn"
@@ -583,7 +581,7 @@
 
 
     // =========================================================
-    // 選擇機台邏輯 (選完機台後解鎖班別按鈕)
+    // 選擇機台邏輯
     // =========================================================
 
     function selectMachine(item) {
@@ -599,21 +597,15 @@
         document.getElementById('unitSeconds').value = '';
         lastRecordEndTime = null;
 
-        // 解鎖班別按鈕
-        document.getElementById('dayShiftBtn').disabled = false;
-        document.getElementById('nightShiftBtn').disabled = false;
-
-        // 如果已經有選過班別，就立刻撈取上一筆資料
+        // 如果班別也已經選了，立刻撈取上一筆資料
         if (document.getElementById('shift').value) {
             fetchLastRecord();
         }
-
-        document.getElementById('part').focus();
     }
 
 
     // =========================================================
-    // 點選班別按鈕邏輯 (解鎖後續所有欄位)
+    // 點選班別按鈕邏輯
     // =========================================================
 
     function selectShift(shiftName) {
@@ -630,9 +622,8 @@
             nightBtn.className = 'shift-btn active-night';
         }
 
-        // 解鎖下方所有欄位與按鈕
+        // 解鎖後續欄位
         unlockFormFields();
-
         handleShiftChange();
 
         // 如果機台已經有選好，立刻撈取上一筆資料
@@ -643,14 +634,13 @@
 
 
     // =========================================================
-    // 解鎖表單欄位 (機台與班別都選好後)
+    // 解鎖表單欄位 (結算時間之後的欄位)
     // =========================================================
 
     function unlockFormFields() {
         const fieldsToUnlock = [
-            'part', 'startTime', 'endTime', 
-            'workingHours', 'qty', 'unitSeconds', 'addInvalidBtn', 
-            'remark', 'submitBtn'
+            'endTime', 'workingHours', 'qty', 'unitSeconds', 
+            'addInvalidBtn', 'remark', 'submitBtn'
         ];
 
         fieldsToUnlock.forEach(id => {
@@ -662,8 +652,6 @@
         document.querySelectorAll('.invalidType, .invalidMin, .btn-remove').forEach(el => {
             el.disabled = false;
         });
-
-        document.getElementById('part').placeholder = "輸入關鍵字搜尋品名...";
     }
 
 
@@ -1079,6 +1067,22 @@
 
 
     // =========================================================
+    // 機台失去焦點 (自動辨識手動完整輸入的有效機台)
+    // =========================================================
+
+    machineInput.addEventListener('blur', function () {
+        setTimeout(() => {
+            machineList.style.display = 'none';
+
+            const typedValue = machineInput.value.trim();
+            if (typedValue && allMachines.includes(typedValue) && selectedMachine !== typedValue) {
+                selectMachine(typedValue);
+            }
+        }, 200);
+    });
+
+
+    // =========================================================
     // 機台鍵盤操作
     // =========================================================
 
@@ -1113,23 +1117,6 @@
                 selectMachine(machineInput.value.trim());
             }
         }
-    });
-
-
- // =========================================================
-    // 機台失去焦點 (若有手動完整輸入有效機台，自動鎖定並撈取)
-    // =========================================================
-
-    machineInput.addEventListener('blur', function () {
-        setTimeout(() => {
-            machineList.style.display = 'none';
-
-            const typedValue = machineInput.value.trim();
-            // 如果輸入的機台在清單內，但還沒執行 selectMachine
-            if (typedValue && allMachines.includes(typedValue) && selectedMachine !== typedValue) {
-                selectMachine(typedValue);
-            }
-        }, 200);
     });
 
 
@@ -1589,7 +1576,7 @@
 
 
     // =========================================================
-    // 送出成功後重設表單 (重新鎖定欄位)
+    // 送出成功後重設表單 (重新鎖定後續欄位)
     // =========================================================
 
     function resetFormAfterSubmit() {
@@ -1606,25 +1593,20 @@
         lastRecordEndTime = null;
         currentRequestId = null;
 
-        // 重設班別按鈕狀態與重新鎖定
+        // 重設班別按鈕狀態
         document.getElementById('shift').value = '';
         document.getElementById('dayShiftBtn').className = 'shift-btn';
-        document.getElementById('dayShiftBtn').disabled = true;
         document.getElementById('nightShiftBtn').className = 'shift-btn';
-        document.getElementById('nightShiftBtn').disabled = true;
 
-        // 重新鎖定所有後續欄位
+        // 重新鎖定結算時間之後的後續欄位
         const fieldsToLock = [
-            'part', 'startTime', 'endTime', 
-            'workingHours', 'qty', 'unitSeconds', 'addInvalidBtn', 
+            'endTime', 'workingHours', 'qty', 'unitSeconds', 'addInvalidBtn', 
             'remark', 'submitBtn'
         ];
         fieldsToLock.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.disabled = true;
         });
-
-        document.getElementById('part').placeholder = "請先選擇機台與班別...";
 
         document.getElementById('requestHint').style.display = 'none';
         document.getElementById('machineError').style.display = 'none';
