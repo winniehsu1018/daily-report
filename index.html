@@ -644,7 +644,7 @@
 
 
     // =========================================================
-    // 機台輸入框按下 Enter 跳到班別按鈕
+    // 機台輸入框按下 Enter 跳到班別按鈕 (支援模糊比對自動帶入)
     // =========================================================
 
     function jumpToShift(e) {
@@ -652,13 +652,35 @@
             e.preventDefault();
             const machineVal = machineInput.value.trim();
             
-            if (!machineVal || !allMachines.includes(machineVal)) {
+            if (!machineVal) {
                 document.getElementById('machineError').style.display = 'block';
-                alert("❌ 請先選擇或輸入有效的機台編號！");
+                alert("❌ 請先輸入機台編號！");
                 return;
             }
+
+            // 1. 如果剛好完全符合清單中的某個機台
+            if (allMachines.includes(machineVal)) {
+                selectMachine(machineVal);
+            } else {
+                // 2. 模糊比對部分關鍵字（例如輸入 017 自動對應 YCL-20-017）
+                const cleanVal = machineVal.toLowerCase().replace(/[-\s]/g, '');
+                const matchedMachines = allMachines.filter(m => {
+                    return m.toLowerCase().replace(/[-\s]/g, '').includes(cleanVal);
+                });
+
+                if (matchedMachines.length === 1) {
+                    selectMachine(matchedMachines[0]);
+                } else if (matchedMachines.length > 1) {
+                    alert(`❌ 找到多個符合 "${machineVal}" 的機台，請從清單中點選精確的機台！`);
+                    machineList.style.display = 'block';
+                    return;
+                } else {
+                    document.getElementById('machineError').style.display = 'block';
+                    alert("❌ 找不到此機台編號，請重新確認！");
+                    return;
+                }
+            }
             
-            selectMachine(machineVal);
             machineList.style.display = 'none';
 
             const dayBtn = document.getElementById('dayShiftBtn');
