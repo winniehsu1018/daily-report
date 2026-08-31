@@ -1532,6 +1532,17 @@
             return;
         }
 
+        // 💡 強化防呆：強制檢查本次開始時間是否小於上一筆結束時間，避免時間重疊
+        if (lastRecordEndTime) {
+            let lastEndMin = parseMinutes(lastRecordEndTime, isMid);
+            if (startMin < lastEndMin) {
+                alert(`❌ 時間防呆錯誤：\n\n此機台上一筆作業的結束時間是 【${lastRecordEndTime}】。\n您輸入的開始時間 (${startTime}) 早於上一筆結束時間，會造成時間重疊！`);
+                document.getElementById('startTime').value = lastRecordEndTime;
+                document.getElementById('startTime').focus();
+                return;
+            }
+        }
+
         if (endMin !== null) {
             let totalElapsedMinutes = endMin - startMin;
 
