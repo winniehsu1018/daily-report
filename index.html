@@ -1116,13 +1116,19 @@
     });
 
 
-    // =========================================================
-    // 機台失去焦點
+ // =========================================================
+    // 機台失去焦點 (若有手動完整輸入有效機台，自動鎖定並撈取)
     // =========================================================
 
     machineInput.addEventListener('blur', function () {
         setTimeout(() => {
             machineList.style.display = 'none';
+
+            const typedValue = machineInput.value.trim();
+            // 如果輸入的機台在清單內，但還沒執行 selectMachine
+            if (typedValue && allMachines.includes(typedValue) && selectedMachine !== typedValue) {
+                selectMachine(typedValue);
+            }
         }, 200);
     });
 
