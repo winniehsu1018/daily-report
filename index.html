@@ -214,20 +214,7 @@
             >
         </div>
 
-        <!-- 班別 -->
-        <div class="form-group">
-            <label for="shift">班別：</label>
-            <select
-                id="shift"
-                required
-                onchange="handleShiftChange(); fetchLastRecord();"
-            >
-                <option value="白班">白班 (08:00 - 17:00)</option>
-                <option value="中班">中班 (16:00 - 03:30)</option>
-            </select>
-        </div>
-
-        <!-- 機台編號 -->
+        <!-- 機台編號 (移至班別上方) -->
         <div class="form-group">
             <label for="machine">機台編號：</label>
             <input
@@ -239,7 +226,7 @@
             >
             <div id="machineList" class="dropdown-list"></div>
             <div class="machine-hint">
-                💡 請從下方清單選擇機台，不能自行輸入不存在的機台
+                💡 請從下方清單選擇機台，選擇後將自動撈取上一筆資料
             </div>
             <div
                 class="machine-error"
@@ -254,6 +241,19 @@
             >
                 ⚡ 已自動帶入當天該機台上一筆作業資料與結束時間
             </div>
+        </div>
+
+        <!-- 班別 -->
+        <div class="form-group">
+            <label for="shift">班別：</label>
+            <select
+                id="shift"
+                required
+                onchange="handleShiftChange(); fetchLastRecord();"
+            >
+                <option value="白班">白班 (08:00 - 17:00)</option>
+                <option value="中班">中班 (16:00 - 03:30)</option>
+            </select>
         </div>
 
         <!-- 品名規格 -->
