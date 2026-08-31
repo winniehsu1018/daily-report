@@ -281,6 +281,7 @@
                 required
                 placeholder="輸入關鍵字搜尋機台..."
                 autocomplete="off"
+                onkeydown="jumpToShift(event)"
             >
             <div id="machineList" class="dropdown-list"></div>
             <div class="machine-hint">
@@ -643,6 +644,32 @@
 
 
     // =========================================================
+    // 機台輸入框按下 Enter 跳到班別按鈕
+    // =========================================================
+
+    function jumpToShift(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            const machineVal = machineInput.value.trim();
+            
+            if (!machineVal || !allMachines.includes(machineVal)) {
+                document.getElementById('machineError').style.display = 'block';
+                alert("❌ 請先選擇或輸入有效的機台編號！");
+                return;
+            }
+            
+            selectMachine(machineVal);
+            machineList.style.display = 'none';
+
+            const dayBtn = document.getElementById('dayShiftBtn');
+            if (dayBtn) {
+                dayBtn.focus();
+            }
+        }
+    }
+
+
+    // =========================================================
     // 班別按鈕鍵盤左右切換與 Enter 跳格
     // =========================================================
 
@@ -660,16 +687,24 @@
             e.preventDefault();
             selectShift(currentShift);
 
-            const nextEl = document.getElementById('part');
-            if (nextEl) {
-                nextEl.focus();
-                setTimeout(() => {
-                    nextEl.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
-                }, 50);
-            }
+            // 智慧判斷：如果已經自動帶入上一筆資料，則跳到空白需要輸入的欄位；否則跳到品名
+            setTimeout(() => {
+                const partEl = document.getElementById('part');
+                const startTimeEl = document.getElementById('startTime');
+                const endTimeEl = document.getElementById('endTime');
+                const qtyEl = document.getElementById('qty');
+
+                let targetEl = partEl;
+
+                if (partEl.value.trim() && startTimeEl.value.trim()) {
+                    targetEl = (!endTimeEl.value.trim()) ? endTimeEl : qtyEl;
+                }
+
+                if (targetEl) {
+                    targetEl.focus();
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
         }
     }
 
@@ -1154,14 +1189,8 @@
                 addActive(items, machineCurrentFocus, 'machine');
             }
         } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (machineCurrentFocus > -1 && items[machineCurrentFocus]) {
-                selectMachine(items[machineCurrentFocus].textContent);
-            } else if (items.length > 0) {
-                selectMachine(items[0].textContent);
-            } else if (allMachines.includes(machineInput.value.trim())) {
-                selectMachine(machineInput.value.trim());
-            }
+            // Enter 的行為交由 jumpToShift 統一處理
+            return;
         }
     });
 
