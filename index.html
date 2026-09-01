@@ -872,7 +872,7 @@
 
 
     // =========================================================
-    // 取得上一筆資料
+    // 取得上一筆資料 (已移除應有工時帶入，完全由班別決定)
     // =========================================================
 
     function fetchLastRecord() {
@@ -917,9 +917,7 @@
                     lastRecordEndTime = data.endTime;
                 }
 
-                if (data.workingHours) {
-                    setWorkingHours(String(data.workingHours));
-                }
+                // 💡 注意：此處刻意拔除 data.workingHours 的帶入，讓應有工時維持由班別按鈕控制
 
                 if (data.unitSeconds !== undefined && data.unitSeconds !== null && data.unitSeconds !== "") {
                     const previousSeconds = Number(data.unitSeconds);
