@@ -314,15 +314,25 @@
 
         <!-- 品名規格 -->
         <div class="form-group">
-            <label for="part">品名規格 / 加工工序：</label>
+            <label for="part">品名規格 / 加工工序：<span style="color: red;">*</span></label>
             <input
                 type="text"
                 id="part"
                 required
                 placeholder="輸入關鍵字搜尋品名..."
                 autocomplete="off"
+                onkeydown="jumpToPart(event)"
             >
             <div id="partList" class="dropdown-list"></div>
+            <div class="machine-hint">
+                💡 請從下方清單選擇品名規格
+            </div>
+            <div
+                class="machine-error"
+                id="partError"
+            >
+                ❌ 請從品名清單中選擇有效的品名規格
+            </div>
         </div>
 
         <!-- 開始時間 -->
@@ -568,6 +578,7 @@
     let lastRecordEndTime = null;
 
     let selectedMachine = "";
+    let selectedPart = "";
 
     let lastRecordRequestSeq = 0;
 
@@ -603,6 +614,7 @@
 
         isUserTypingPart = false;
         document.getElementById('part').value = '';
+        selectedPart = "";
         document.getElementById('startTime').value = '';
         document.getElementById('endTime').value = '';
         document.getElementById('unitSeconds').value = '';
@@ -612,6 +624,19 @@
         if (document.getElementById('shift').value) {
             fetchLastRecord();
         }
+    }
+
+
+    // =========================================================
+    // 選擇品名邏輯
+    // =========================================================
+
+    function selectPart(item) {
+        partInput.value = item;
+        selectedPart = item;
+        partList.style.display = 'none';
+        document.getElementById('partError').style.display = 'none';
+        isUserTypingPart = false;
     }
 
 
@@ -661,23 +686,17 @@
 
             let items = machineList.getElementsByClassName('dropdown-item');
 
-            // 1. 如果下拉選單正在顯示，且使用者透過方向鍵選中了某個項目 (machineCurrentFocus > -1)
             if (machineList.style.display === 'block' && machineCurrentFocus > -1 && items[machineCurrentFocus]) {
                 selectMachine(items[machineCurrentFocus].textContent);
-            } 
-            // 2. 如果剛好完全符合清單中的某個機台
-            else if (allMachines.includes(machineVal)) {
+            } else if (allMachines.includes(machineVal)) {
                 selectMachine(machineVal);
             } else {
-                // 3. 模糊比對部分關鍵字
                 const cleanVal = machineVal.toLowerCase().replace(/[-\s]/g, '');
                 const matchedMachines = allMachines.filter(m => {
                     return m.toLowerCase().replace(/[-\s]/g, '').includes(cleanVal);
                 });
 
-                if (matchedMachines.length === 1) {
-                    selectMachine(matchedMachines[0]);
-                } else if (matchedMachines.length > 1) {
+                if (matchedMachines.length >= 1) {
                     selectMachine(matchedMachines[0]);
                 } else {
                     document.getElementById('machineError').style.display = 'block';
@@ -691,6 +710,52 @@
             const dayBtn = document.getElementById('dayShiftBtn');
             if (dayBtn) {
                 dayBtn.focus();
+            }
+        }
+    }
+
+
+    // =========================================================
+    // 品名輸入框按下 Enter 跳到開始時間
+    // =========================================================
+
+    function jumpToPart(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            const partVal = partInput.value.trim();
+
+            if (!partVal) {
+                document.getElementById('partError').style.display = 'block';
+                alert("❌ 請先輸入或選擇品名規格！");
+                return;
+            }
+
+            let items = partList.getElementsByClassName('dropdown-item');
+
+            if (partList.style.display === 'block' && partCurrentFocus > -1 && items[partCurrentFocus]) {
+                selectPart(items[partCurrentFocus].textContent);
+            } else if (allParts.includes(partVal)) {
+                selectPart(partVal);
+            } else {
+                const cleanVal = partVal.toLowerCase().replace(/[-\s]/g, '');
+                const matchedParts = allParts.filter(p => {
+                    return p.toLowerCase().replace(/[-\s]/g, '').includes(cleanVal);
+                });
+
+                if (matchedParts.length >= 1) {
+                    selectPart(matchedParts[0]);
+                } else {
+                    document.getElementById('partError').style.display = 'block';
+                    alert("❌ 找不到此品名規格，請從清單中選擇！");
+                    return;
+                }
+            }
+
+            partList.style.display = 'none';
+
+            const startTimeEl = document.getElementById('startTime');
+            if (startTimeEl) {
+                startTimeEl.focus();
             }
         }
     }
@@ -714,17 +779,15 @@
             e.preventDefault();
             selectShift(currentShift);
 
-            // 智慧判斷：如果已經自動帶入上一筆資料，則跳到空白需要輸入的欄位；否則跳到品名
             setTimeout(() => {
                 const partEl = document.getElementById('part');
                 const startTimeEl = document.getElementById('startTime');
                 const endTimeEl = document.getElementById('endTime');
-                const qtyEl = document.getElementById('qty');
 
                 let targetEl = partEl;
 
                 if (partEl.value.trim() && startTimeEl.value.trim()) {
-                    targetEl = (!endTimeEl.value.trim()) ? endTimeEl : qtyEl;
+                    targetEl = (!endTimeEl.value.trim()) ? endTimeEl : document.getElementById('qty');
                 }
 
                 if (targetEl) {
@@ -751,7 +814,6 @@
             if (el) el.disabled = false;
         });
 
-        // 解鎖動態無效工時方塊內的欄位
         document.querySelectorAll('.invalidType, .invalidMin, .btn-remove').forEach(el => {
             el.disabled = false;
         });
@@ -843,12 +905,11 @@
             }
 
             const hintEl = document.getElementById('autoHint');
-            const partInputEl = document.getElementById('part');
             const startTimeEl = document.getElementById('startTime');
 
             if (data.success) {
-                if (data.part && !partInputEl.value.trim() && !isUserTypingPart) {
-                    partInputEl.value = data.part;
+                if (data.part && allParts.includes(data.part) && !selectedPart && !isUserTypingPart) {
+                    selectPart(data.part);
                 }
 
                 if (data.endTime && !startTimeEl.value.trim()) {
@@ -872,7 +933,6 @@
                     hintEl.style.display = 'none';
                 }, 4000);
 
-                // 自動帶入後跳至空白欄位
                 setTimeout(() => {
                     const endTimeEl = document.getElementById('endTime');
                     const qtyEl = document.getElementById('qty');
@@ -1161,11 +1221,6 @@
         }
     });
 
-
-    // =========================================================
-    // 機台失去焦點
-    // =========================================================
-
     machineInput.addEventListener('blur', function () {
         setTimeout(() => {
             machineList.style.display = 'none';
@@ -1176,11 +1231,6 @@
             }
         }, 200);
     });
-
-
-    // =========================================================
-    // 機台鍵盤操作
-    // =========================================================
 
     machineInput.addEventListener('keydown', function (e) {
         let items = machineList.getElementsByClassName('dropdown-item');
@@ -1204,7 +1254,6 @@
                 addActive(items, machineCurrentFocus, 'machine');
             }
         } else if (e.key === 'Enter') {
-            // Enter 的行為交由 jumpToShift 統一處理
             return;
         }
     });
@@ -1221,6 +1270,7 @@
     partInput.addEventListener('keydown', function (e) {
         if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
             isUserTypingPart = true;
+            selectedPart = "";
         }
 
         let items = partList.getElementsByClassName('dropdown-item');
@@ -1244,25 +1294,14 @@
                 addActive(items, partCurrentFocus, 'part');
             }
         } else if (e.key === 'Enter') {
-            e.preventDefault();
-            isUserTypingPart = false;
-
-            if (partCurrentFocus > -1 && items[partCurrentFocus]) {
-                partInput.value = items[partCurrentFocus].textContent;
-                partList.style.display = 'none';
-                document.getElementById('startTime').focus();
-            } else if (items.length > 0) {
-                partInput.value = items[0].textContent;
-                partList.style.display = 'none';
-                document.getElementById('startTime').focus();
-            } else {
-                partList.style.display = 'none';
-                document.getElementById('startTime').focus();
-            }
+            return;
         }
     });
 
     partInput.addEventListener('input', function () {
+        selectedPart = '';
+        document.getElementById('partError').style.display = 'none';
+
         const rawVal = this.value;
         const val = rawVal.toLowerCase().replace(/[-\s]/g, '');
 
@@ -1287,10 +1326,7 @@
                 div.textContent = item;
                 div.addEventListener('mousedown', function (e) {
                     e.preventDefault();
-                    isUserTypingPart = false;
-                    partInput.value = item;
-                    partList.style.display = 'none';
-                    document.getElementById('startTime').focus();
+                    selectPart(item);
                 });
                 partList.appendChild(div);
             });
@@ -1302,6 +1338,17 @@
     partInput.addEventListener('blur', function () {
         setTimeout(() => {
             partList.style.display = 'none';
+
+            const typedValue = partInput.value.trim();
+            if (typedValue) {
+                if (allParts.includes(typedValue)) {
+                    selectPart(typedValue);
+                } else {
+                    document.getElementById('partError').style.display = 'block';
+                    partInput.value = '';
+                    selectedPart = '';
+                }
+            }
         }, 200);
     });
 
@@ -1377,10 +1424,9 @@
         list.innerHTML = '';
 
         if (shift === '白班') {
-            return; // 白班只有一個選項，不需要選單
+            return;
         }
 
-        // 中班選項：項目1 = 510，項目2 = 630
         const options = [
             { val: '510', text: '510 分鐘' },
             { val: '630', text: '630 分鐘' }
@@ -1412,7 +1458,6 @@
             return;
         }
 
-        // 核心要求：按「下」鍵 = 510 分鐘，按「上」鍵 = 630 分鐘
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             setWorkingHours('510');
@@ -1430,7 +1475,7 @@
 
 
     // =========================================================
-    // 班別切換 (選中班時自動設為 510)
+    // 班別切換
     // =========================================================
 
     function handleShiftChange() {
@@ -1490,6 +1535,14 @@
             document.getElementById('machineError').style.display = 'block';
             alert("❌ 請從機台清單中選擇有效的機台！");
             machineInput.focus();
+            return;
+        }
+
+        const part = partInput.value.trim();
+        if (!part || !selectedPart || part !== selectedPart) {
+            document.getElementById('partError').style.display = 'block';
+            alert("❌ 請從品名清單中選擇有效的品名規格！");
+            partInput.focus();
             return;
         }
 
@@ -1611,7 +1664,6 @@
             return;
         }
 
-        // 💡 強化防呆：強制檢查本次開始時間是否小於上一筆結束時間，避免時間重疊
         if (lastRecordEndTime) {
             let lastEndMin = parseMinutes(lastRecordEndTime, isMid);
             if (startMin < lastEndMin) {
@@ -1754,6 +1806,7 @@
         machineInput.value = '';
         partInput.value = '';
         selectedMachine = '';
+        selectedPart = '';
         isUserTypingPart = false;
         lastRecordEndTime = null;
         currentRequestId = null;
@@ -1763,7 +1816,6 @@
         document.getElementById('dayShiftBtn').className = 'shift-btn';
         document.getElementById('nightShiftBtn').className = 'shift-btn';
 
-        // 重新鎖定結算時間之後的後續欄位
         const fieldsToLock = [
             'endTime', 'workingHoursDisplay', 'qty', 'unitSeconds', 'addInvalidBtn', 
             'remark', 'submitBtn'
@@ -1775,6 +1827,7 @@
 
         document.getElementById('requestHint').style.display = 'none';
         document.getElementById('machineError').style.display = 'none';
+        document.getElementById('partError').style.display = 'none';
 
         const container = document.getElementById('invalidContainer');
         container.innerHTML = `
@@ -1843,7 +1896,6 @@
 
         checkAddButtonState();
 
-        // 焦點與視窗回到機台欄位，方便連續輸入
         machineInput.focus();
         machineInput.scrollIntoView({
             behavior: 'smooth',
