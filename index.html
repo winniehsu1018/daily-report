@@ -243,6 +243,34 @@
             margin-top: 5px;
             display: none;
         }
+
+        /* 身分驗證畫面樣式 */
+        #loginView {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        #loginView h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        #loginMsg {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
@@ -250,303 +278,313 @@
 
 <div class="container">
 
-    <h2>CNC 生產日報回報</h2>
+    <!-- 身分驗證等待 / 錯誤畫面 -->
+    <div id="loginView">
+        <h2>CNC 生產日報回報系統</h2>
+        <div class="spinner" id="loginSpinner"></div>
+        <p id="loginMsg">正在驗證您的 LINE 身分權限，請稍候...</p>
+    </div>
 
-    <div id="userInfo">正在取得 LINE 身分中...</div>
+    <!-- 原始表單畫面 (預設隱藏，通過驗證後顯示) -->
+    <div id="mainFormView" style="display: none;">
+        <h2>CNC 生產日報回報</h2>
 
-    <form
-        id="reportForm"
-        onkeydown="if(event.key === 'Enter' && event.target.tagName !== 'BUTTON') { event.preventDefault(); }"
-    >
+        <div id="userInfo">正在取得 LINE 身分中...</div>
 
-        <!-- 日期 -->
-        <div class="form-group">
-            <label for="date">日期 (MMDD)：</label>
-            <input
-                type="text"
-                id="date"
-                inputmode="numeric"
-                required
-                placeholder="例如: 0824"
-                onchange="fetchLastRecord()"
-            >
-        </div>
+        <form
+            id="reportForm"
+            onkeydown="if(event.key === 'Enter' && event.target.tagName !== 'BUTTON') { event.preventDefault(); }"
+        >
 
-        <!-- 機台編號 -->
-        <div class="form-group">
-            <label for="machine">機台編號：<span style="color: red;">*</span></label>
-            <input
-                type="text"
-                id="machine"
-                required
-                placeholder="輸入關鍵字搜尋機台..."
-                autocomplete="off"
-                onkeydown="jumpToShift(event)"
-            >
-            <div id="machineList" class="dropdown-list"></div>
-            <div class="machine-hint">
-                💡 請從下方清單選擇機台，選擇後將自動撈取上一筆資料
+            <!-- 日期 -->
+            <div class="form-group">
+                <label for="date">日期 (MMDD)：</label>
+                <input
+                    type="text"
+                    id="date"
+                    inputmode="numeric"
+                    required
+                    placeholder="例如: 0824"
+                    onchange="fetchLastRecord()"
+                >
             </div>
+
+            <!-- 機台編號 -->
+            <div class="form-group">
+                <label for="machine">機台編號：<span style="color: red;">*</span></label>
+                <input
+                    type="text"
+                    id="machine"
+                    required
+                    placeholder="輸入關鍵字搜尋機台..."
+                    autocomplete="off"
+                    onkeydown="jumpToShift(event)"
+                >
+                <div id="machineList" class="dropdown-list"></div>
+                <div class="machine-hint">
+                    💡 請從下方清單選擇機台，選擇後將自動撈取上一筆資料
+                </div>
+                <div
+                    class="machine-error"
+                    id="machineError"
+                >
+                    ❌ 請從機台清單中選擇有效的機台
+                </div>
+                <div
+                    class="auto-hint"
+                    id="autoHint"
+                    style="display:none;"
+                >
+                    ⚡ 已自動帶入當天該機台上一筆作業資料與結束時間
+                </div>
+            </div>
+
+            <!-- 班別 -->
+            <div class="form-group">
+                <label>班別 (請點選)：<span style="color: red;">*</span></label>
+                <div class="shift-container">
+                    <button type="button" id="dayShiftBtn" class="shift-btn" tabindex="0" onclick="selectShift('白班')" onkeydown="handleShiftKeydown(event, '白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
+                    <button type="button" id="nightShiftBtn" class="shift-btn" tabindex="0" onclick="selectShift('中班')" onkeydown="handleShiftKeydown(event, '中班')">🌙 中班<br><span style="font-size:12px;">(17:00 - 03:30)</span></button>
+                </div>
+                <input type="hidden" id="shift" required value="">
+            </div>
+
+            <!-- 品名規格 -->
+            <div class="form-group">
+                <label for="part">品名規格 / 加工工序：<span style="color: red;">*</span></label>
+                <input
+                    type="text"
+                    id="part"
+                    required
+                    placeholder="輸入關鍵字搜尋品名..."
+                    autocomplete="off"
+                    onkeydown="jumpToPart(event)"
+                >
+                <div id="partList" class="dropdown-list"></div>
+                <div class="machine-hint">
+                    💡 請從下方清單選擇品名規格
+                </div>
+                <div
+                    class="machine-error"
+                    id="partError"
+                >
+                    ❌ 請從品名清單中選擇有效的品名規格
+                </div>
+            </div>
+
+            <!-- 開始時間 -->
+            <div class="form-group">
+                <label for="startTime">
+                    開始時間 (若有上一筆將自動帶入結算時間)：
+                </label>
+                <input
+                    type="text"
+                    id="startTime"
+                    inputmode="numeric"
+                    placeholder="例: 0800"
+                    maxlength="5"
+                    oninput="autoFormatTime(this, 'endTime')"
+                    onblur="validateTimeInput(this)"
+                    onkeydown="jumpToNext(event, 'endTime')"
+                    required
+                >
+                <div class="time-hint">
+                    💡 輸入 4 位數字（如 0800，離開時自動轉為 08:00）
+                </div>
+            </div>
+
+            <!-- 結算時間 -->
+            <div class="form-group">
+                <label for="endTime">
+                    結算時間 (有填數量或無效工時則必填)：
+                </label>
+                <input
+                    type="text"
+                    id="endTime"
+                    inputmode="numeric"
+                    placeholder="例: 1700"
+                    maxlength="5"
+                    oninput="autoFormatEndTime(this)"
+                    onblur="validateTimeInput(this)"
+                    disabled
+                >
+                <div class="time-hint">
+                    💡 輸入 4 位數字（如 1700，離開時自動轉為 17:00）
+                </div>
+            </div>
+
+            <!-- 應有工時 -->
+            <div class="form-group">
+                <label for="workingHoursDisplay">應有工時 (分鐘)：</label>
+                <input
+                    type="text"
+                    id="workingHoursDisplay"
+                    readonly
+                    placeholder="請選擇應有工時"
+                    style="cursor: pointer; background-color: #fff;"
+                    onclick="toggleWorkingHoursDropdown()"
+                    onkeydown="handleWorkingHoursKeydown(event)"
+                    disabled
+                >
+                <input type="hidden" id="workingHours" value="540">
+                <div id="workingHoursList" class="dropdown-list"></div>
+            </div>
+
+            <!-- 完成數量 -->
+            <div class="form-group">
+                <label for="qty">
+                    本次完成數量 (pcs)：
+                </label>
+                <input
+                    type="text"
+                    id="qty"
+                    inputmode="numeric"
+                    required
+                    placeholder="請輸入完成數量 (若無產出可填 0)"
+                    oninput="this.value = this.value.replace(/\D/g, '')"
+                    onkeydown="jumpToNext(event, 'unitSeconds')" 
+                    onkeyup="if(event.key === 'Enter' || event.keyCode === 13) { event.preventDefault(); }"
+                    disabled
+                >
+                <div class="time-hint">
+                    💡 只能輸入純數字，系統會自動過濾符號
+                </div>
+            </div>
+
+            <!-- 單件秒數 -->
+            <div class="form-group">
+                <label for="unitSeconds">
+                    生產回報單件工時 (S) 秒數 (無產出可不填)：
+                </label>
+                <input
+                    type="text"
+                    id="unitSeconds"
+                    inputmode="decimal"
+                    placeholder="請輸入單件秒數 (可至小數點第一位，0～300)"
+                    onkeydown="jumpToNext(event, 'remark')"
+                    disabled
+                >
+                <div class="time-hint">
+                    💡 單件工時範圍：0～300 秒（支援至小數點第一位）
+                </div>
+            </div>
+
+            <!-- 動態無效工時 -->
+            <label>
+                無效工時項目 (選填，最多 4 項)：
+            </label>
+            <div id="invalidContainer">
+                <div class="invalid-box" data-index="1">
+                    <div class="invalid-header">
+                        <span>項目 1</span>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 8px;">
+                        <select class="invalidType" disabled>
+                            <option value="">無</option>
+                            <option value="架機">架機</option>
+                            <option value="換刀">換刀</option>
+                            <option value="清潔">清潔</option>
+                            <option value="點檢">點檢</option>
+                            <option value="待料">待料</option>
+                            <option value="換批">換批</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <input
+                            type="text"
+                            class="invalidMin"
+                            inputmode="numeric"
+                            placeholder="請輸入分鐘數"
+                            disabled
+                        />
+                    </div>
+                </div>
+                
+                <div class="invalid-box" data-index="2">
+                    <div class="invalid-header">
+                        <span>項目 2</span>
+                        <button
+                            type="button"
+                            class="btn-remove"
+                            onclick="removeInvalidBox(this)"
+                            disabled
+                        >
+                            刪除
+                        </button>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 8px;">
+                        <select class="invalidType" disabled>
+                            <option value="">無</option>
+                            <option value="架機">架機</option>
+                            <option value="換刀">換刀</option>
+                            <option value="清潔">清潔</option>
+                            <option value="點檢">點檢</option>
+                            <option value="待料">待料</option>
+                            <option value="換批">換批</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <input
+                            type="text"
+                            class="invalidMin"
+                            inputmode="numeric"
+                            placeholder="請輸入分鐘數"
+                            disabled
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                class="btn-add"
+                id="addInvalidBtn"
+                onclick="addInvalidBox()"
+                disabled
+            >
+                ＋ 新增無效工時項目
+            </button>
+
+            <!-- 備註 -->
             <div
-                class="machine-error"
-                id="machineError"
+                class="form-group"
+                style="margin-top: 15px;"
             >
-                ❌ 請從機台清單中選擇有效的機台
+                <label for="remark">
+                    備註 (選填)：
+                </label>
+                <input
+                    type="text"
+                    id="remark"
+                    placeholder="如有特殊狀況請填寫"
+                    disabled
+                >
             </div>
+
+            <!-- 送出 -->
+            <button
+                type="submit"
+                id="submitBtn"
+                disabled
+            >
+                確認送出
+            </button>
+
+            <div id="loading">
+                ⏳ 正在送出資料，請稍候（請勿重複點擊）...
+            </div>
+
             <div
-                class="auto-hint"
-                id="autoHint"
-                style="display:none;"
+                id="requestHint"
+                class="request-hint"
             >
-                ⚡ 已自動帶入當天該機台上一筆作業資料與結束時間
+                Request ID：<span id="requestIdDisplay"></span>
             </div>
-        </div>
 
-        <!-- 班別 -->
-        <div class="form-group">
-            <label>班別 (請點選)：<span style="color: red;">*</span></label>
-            <div class="shift-container">
-                <button type="button" id="dayShiftBtn" class="shift-btn" tabindex="0" onclick="selectShift('白班')" onkeydown="handleShiftKeydown(event, '白班')">☀️ 白班<br><span style="font-size:12px;">(08:00 - 17:00)</span></button>
-                <button type="button" id="nightShiftBtn" class="shift-btn" tabindex="0" onclick="selectShift('中班')" onkeydown="handleShiftKeydown(event, '中班')">🌙 中班<br><span style="font-size:12px;">(17:00 - 03:30)</span></button>
-            </div>
-            <input type="hidden" id="shift" required value="">
-        </div>
-
-        <!-- 品名規格 -->
-        <div class="form-group">
-            <label for="part">品名規格 / 加工工序：<span style="color: red;">*</span></label>
-            <input
-                type="text"
-                id="part"
-                required
-                placeholder="輸入關鍵字搜尋品名..."
-                autocomplete="off"
-                onkeydown="jumpToPart(event)"
-            >
-            <div id="partList" class="dropdown-list"></div>
-            <div class="machine-hint">
-                💡 請從下方清單選擇品名規格
-            </div>
-            <div
-                class="machine-error"
-                id="partError"
-            >
-                ❌ 請從品名清單中選擇有效的品名規格
-            </div>
-        </div>
-
-        <!-- 開始時間 -->
-        <div class="form-group">
-            <label for="startTime">
-                開始時間 (若有上一筆將自動帶入結算時間)：
-            </label>
-            <input
-                type="text"
-                id="startTime"
-                inputmode="numeric"
-                placeholder="例: 0800"
-                maxlength="5"
-                oninput="autoFormatTime(this, 'endTime')"
-                onblur="validateTimeInput(this)"
-                onkeydown="jumpToNext(event, 'endTime')"
-                required
-            >
-            <div class="time-hint">
-                💡 輸入 4 位數字（如 0800，離開時自動轉為 08:00）
-            </div>
-        </div>
-
-        <!-- 結算時間 -->
-        <div class="form-group">
-            <label for="endTime">
-                結算時間 (有填數量或無效工時則必填)：
-            </label>
-            <input
-                type="text"
-                id="endTime"
-                inputmode="numeric"
-                placeholder="例: 1700"
-                maxlength="5"
-                oninput="autoFormatEndTime(this)"
-                onblur="validateTimeInput(this)"
-                disabled
-            >
-            <div class="time-hint">
-                💡 輸入 4 位數字（如 1700，離開時自動轉為 17:00）
-            </div>
-        </div>
-
-        <!-- 應有工時 -->
-        <div class="form-group">
-            <label for="workingHoursDisplay">應有工時 (分鐘)：</label>
-            <input
-                type="text"
-                id="workingHoursDisplay"
-                readonly
-                placeholder="請選擇應有工時"
-                style="cursor: pointer; background-color: #fff;"
-                onclick="toggleWorkingHoursDropdown()"
-                onkeydown="handleWorkingHoursKeydown(event)"
-                disabled
-            >
-            <input type="hidden" id="workingHours" value="540">
-            <div id="workingHoursList" class="dropdown-list"></div>
-        </div>
-
-        <!-- 完成數量 -->
-        <div class="form-group">
-            <label for="qty">
-                本次完成數量 (pcs)：
-            </label>
-            <input
-                type="text"
-                id="qty"
-                inputmode="numeric"
-                required
-                placeholder="請輸入完成數量 (若無產出可填 0)"
-                oninput="this.value = this.value.replace(/\D/g, '')"
-                onkeydown="jumpToNext(event, 'unitSeconds')" 
-                onkeyup="if(event.key === 'Enter' || event.keyCode === 13) { event.preventDefault(); }"
-                disabled
-            >
-            <div class="time-hint">
-                💡 只能輸入純數字，系統會自動過濾符號
-            </div>
-        </div>
-
-        <!-- 單件秒數 -->
-        <div class="form-group">
-            <label for="unitSeconds">
-                生產回報單件工時 (S) 秒數 (無產出可不填)：
-            </label>
-            <input
-                type="text"
-                id="unitSeconds"
-                inputmode="decimal"
-                placeholder="請輸入單件秒數 (可至小數點第一位，0～300)"
-                onkeydown="jumpToNext(event, 'remark')"
-                disabled
-            >
-            <div class="time-hint">
-                💡 單件工時範圍：0～300 秒（支援至小數點第一位）
-            </div>
-        </div>
-
-        <!-- 動態無效工時 -->
-        <label>
-            無效工時項目 (選填，最多 4 項)：
-        </label>
-        <div id="invalidContainer">
-            <div class="invalid-box" data-index="1">
-                <div class="invalid-header">
-                    <span>項目 1</span>
-                </div>
-                <div class="form-group" style="margin-bottom: 8px;">
-                    <select class="invalidType" disabled>
-                        <option value="">無</option>
-                        <option value="架機">架機</option>
-                        <option value="換刀">換刀</option>
-                        <option value="清潔">清潔</option>
-                        <option value="點檢">點檢</option>
-                        <option value="待料">待料</option>
-                        <option value="換批">換批</option>
-                        <option value="其他">其他</option>
-                    </select>
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <input
-                        type="text"
-                        class="invalidMin"
-                        inputmode="numeric"
-                        placeholder="請輸入分鐘數"
-                        disabled
-                    />
-                </div>
-            </div>
-            
-            <div class="invalid-box" data-index="2">
-                <div class="invalid-header">
-                    <span>項目 2</span>
-                    <button
-                        type="button"
-                        class="btn-remove"
-                        onclick="removeInvalidBox(this)"
-                        disabled
-                    >
-                        刪除
-                    </button>
-                </div>
-                <div class="form-group" style="margin-bottom: 8px;">
-                    <select class="invalidType" disabled>
-                        <option value="">無</option>
-                        <option value="架機">架機</option>
-                        <option value="換刀">換刀</option>
-                        <option value="清潔">清潔</option>
-                        <option value="點檢">點檢</option>
-                        <option value="待料">待料</option>
-                        <option value="換批">換批</option>
-                        <option value="其他">其他</option>
-                    </select>
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <input
-                        type="text"
-                        class="invalidMin"
-                        inputmode="numeric"
-                        placeholder="請輸入分鐘數"
-                        disabled
-                    />
-                </div>
-            </div>
-        </div>
-
-        <button
-            type="button"
-            class="btn-add"
-            id="addInvalidBtn"
-            onclick="addInvalidBox()"
-            disabled
-        >
-            ＋ 新增無效工時項目
-        </button>
-
-        <!-- 備註 -->
-        <div
-            class="form-group"
-            style="margin-top: 15px;"
-        >
-            <label for="remark">
-                備註 (選填)：
-            </label>
-            <input
-                type="text"
-                id="remark"
-                placeholder="如有特殊狀況請填寫"
-                disabled
-            >
-        </div>
-
-        <!-- 送出 -->
-        <button
-            type="submit"
-            id="submitBtn"
-            disabled
-        >
-            確認送出
-        </button>
-
-        <div id="loading">
-            ⏳ 正在送出資料，請稍候（請勿重複點擊）...
-        </div>
-
-        <div
-            id="requestHint"
-            class="request-hint"
-        >
-            Request ID：<span id="requestIdDisplay"></span>
-        </div>
-
-    </form>
+        </form>
+    </div>
 
 </div>
 
@@ -590,16 +628,80 @@
     // =========================================================
 
     window.onload = function () {
-        const today = new Date();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-
-        document.getElementById('date').value = mm + dd;
-
-        fetchOptions();
         initializeLiff();
-        checkAddButtonState();
     };
+
+
+    // =========================================================
+    // LIFF 初始化與身分驗證
+    // =========================================================
+
+    function initializeLiff() {
+        liff.init({ liffId: LIFF_ID })
+        .then(() => {
+            if (!liff.isInClient() && !liff.isLoggedIn()) {
+                liff.login();
+                return;
+            }
+            if (!liff.isLoggedIn()) {
+                document.getElementById('loginMsg').textContent = '⚠️ LINE 尚未登入';
+                document.getElementById('loginSpinner').style.display = 'none';
+                return;
+            }
+            return liff.getProfile();
+        })
+        .then(profile => {
+            if (!profile) return;
+            userProfile = profile;
+            
+            // 向 GAS 驗證該 userId 是否在授權白名單內
+            checkUserPermission(profile.userId, profile.displayName);
+        })
+        .catch(err => {
+            console.error('LIFF Initialization failed', err);
+            document.getElementById('loginMsg').textContent = '⚠️ LINE 登入初始化失敗';
+            document.getElementById('loginSpinner').style.display = 'none';
+        });
+    }
+
+
+    // =========================================================
+    // 後端權限驗證 (白名單檢查)
+    // =========================================================
+
+    function checkUserPermission(userId, displayName) {
+        document.getElementById('loginMsg').textContent = '正在驗證系統訪問權限...';
+
+        fetch(`${GAS_WEB_APP_URL}?action=checkAuth&userId=${encodeURIComponent(userId)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.authorized) {
+                // 驗證通過：切換至主表單畫面
+                document.getElementById('loginView').style.display = 'none';
+                document.getElementById('mainFormView').style.display = 'block';
+
+                // 初始化表單
+                const today = new Date();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                document.getElementById('date').value = mm + dd;
+
+                document.getElementById('userInfo').textContent = `👤 登入身分: ${displayName}`;
+
+                fetchOptions();
+                checkAddButtonState();
+            } else {
+                // 驗證失敗：顯示拒絕訪問訊息
+                document.getElementById('loginSpinner').style.display = 'none';
+                document.getElementById('loginMsg').innerHTML = `❌ <strong>很抱歉，您無權訪問此系統</strong><br><span style="font-size: 13px; color: #999;">帳號名稱: ${displayName}</span>`;
+            }
+        })
+        .catch(err => {
+            console.error("權限驗證連線失敗", err);
+            document.getElementById('loginSpinner').style.display = 'none';
+            document.getElementById('loginMsg').textContent = '⚠️ 無法連線至伺服器驗證權限，請稍後再試。';
+        });
+    }
 
 
     // =========================================================
@@ -816,35 +918,6 @@
 
         document.querySelectorAll('.invalidType, .invalidMin, .btn-remove').forEach(el => {
             el.disabled = false;
-        });
-    }
-
-
-    // =========================================================
-    // LIFF 初始化
-    // =========================================================
-
-    function initializeLiff() {
-        liff.init({ liffId: LIFF_ID })
-        .then(() => {
-            if (!liff.isInClient() && !liff.isLoggedIn()) {
-                liff.login();
-                return;
-            }
-            if (!liff.isLoggedIn()) {
-                document.getElementById('userInfo').textContent = '⚠️ LINE 尚未登入';
-                return;
-            }
-            return liff.getProfile();
-        })
-        .then(profile => {
-            if (!profile) return;
-            userProfile = profile;
-            document.getElementById('userInfo').textContent = `👤 登入身分: ${profile.displayName}`;
-        })
-        .catch(err => {
-            console.error('LIFF Initialization failed', err);
-            document.getElementById('userInfo').textContent = '⚠️ LINE 登入初始化失敗';
         });
     }
 
