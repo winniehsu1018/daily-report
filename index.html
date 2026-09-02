@@ -686,6 +686,9 @@
                 const dd = String(today.getDate()).padStart(2, '0');
                 document.getElementById('date').value = mm + dd;
 
+                // 預設帶入無效工時項目
+                setDefaultInvalidItems();
+
                 document.getElementById('userInfo').textContent = `👤 登入身分: ${displayName}`;
 
                 fetchOptions();
@@ -701,6 +704,30 @@
             document.getElementById('loginSpinner').style.display = 'none';
             document.getElementById('loginMsg').textContent = '⚠️ 無法連線至伺服器驗證權限，請稍後再試。';
         });
+    }
+
+
+    // =========================================================
+    // 預設帶入無效工時項目
+    // =========================================================
+    function setDefaultInvalidItems() {
+        const boxes = document.querySelectorAll('.invalid-box');
+        
+        // 項目 1 預設：清潔 20 分鐘
+        if (boxes[0]) {
+            const typeSelect1 = boxes[0].querySelector('.invalidType');
+            const minInput1 = boxes[0].querySelector('.invalidMin');
+            if (typeSelect1) typeSelect1.value = '清潔';
+            if (minInput1) minInput1.value = '20';
+        }
+
+        // 項目 2 預設：點檢 3 分鐘
+        if (boxes[1]) {
+            const typeSelect2 = boxes[1].querySelector('.invalidType');
+            const minInput2 = boxes[1].querySelector('.invalidMin');
+            if (typeSelect2) typeSelect2.value = '點檢';
+            if (minInput2) minInput2.value = '3';
+        }
     }
 
 
@@ -1964,6 +1991,9 @@
         `;
 
         checkAddButtonState();
+        
+        // 重新帶入無效工時預設值
+        setDefaultInvalidItems();
 
         machineInput.focus();
         machineInput.scrollIntoView({
