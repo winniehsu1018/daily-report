@@ -271,6 +271,72 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* 確認對話框樣式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            color: #333;
+            text-align: center;
+        }
+        .summary-list {
+            font-size: 15px;
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-confirm {
+            background: #28a745;
+            color: white;
+        }
+        .btn-confirm:hover {
+            background: #218838;
+        }
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 
@@ -588,6 +654,18 @@
 
 </div>
 
+<!-- 確認摘要彈出視窗 -->
+<div id="confirmModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>📋 請確認回報資料</h3>
+        <div id="summaryText" class="summary-list"></div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-btn btn-cancel" onclick="closeConfirmModal()">返回修改</button>
+            <button type="button" class="modal-btn btn-confirm" onclick="executeSubmit()">確認無誤，送出</button>
+        </div>
+    </div>
+</div>
+
 
 <script>
 
@@ -621,6 +699,7 @@
     let lastRecordRequestSeq = 0;
 
     let currentRequestId = null;
+    let pendingFormData = null;
 
 
     // =========================================================
@@ -1615,7 +1694,7 @@
 
 
     // =========================================================
-    // 表單送出
+    // 表單送出 (攔截並開啟確認彈出視窗)
     // =========================================================
 
     document.getElementById('reportForm').addEventListener('submit', function (e) {
@@ -1809,15 +1888,8 @@
             currentRequestId = generateRequestId();
         }
 
-        document.getElementById('requestIdDisplay').textContent = currentRequestId;
-        document.getElementById('requestHint').style.display = 'block';
-
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = true;
-        submitBtn.textContent = "傳送中...";
-        document.getElementById('loading').style.display = 'block';
-
-        const formData = {
+        // 封裝表單資料準備送出
+        pendingFormData = {
             requestId: currentRequestId,
             userId: userProfile.userId,
             userName: userProfile.displayName,
@@ -1834,6 +1906,62 @@
             remark: document.getElementById('remark').value
         };
 
+        // 彈出確認摘要對話框
+        showConfirmSummary(pendingFormData, invalidItems);
+    });
+
+
+    // =========================================================
+    // 顯示確認摘要對話框
+    // =========================================================
+
+    function showConfirmSummary(data, invalidItems) {
+        let html = `
+            <b>日期：</b>${data.date}<br>
+            <b>班別：</b>${data.shift}<br>
+            <b>機台：</b>${data.machine}<br>
+            <b>件號：</b>${data.part}<br>
+            <b>開始時間：</b>${data.startTime}<br>
+            <b>結束時間：</b>${data.endTime || '（未填）'}<br>
+            <b>完成數量：</b>${data.qty} pcs<br>
+            <b>單件工時(sec)：</b>${data.unitSeconds || 0} 秒<br>
+        `;
+
+        if (invalidItems.length > 0) {
+            html += `<br><b>【無效工時明細】</b><br>`;
+            invalidItems.forEach(item => {
+                html += `&nbsp;&nbsp;• ${item.type}：${item.min} 分鐘<br>`;
+            });
+        }
+
+        if (data.remark) {
+            html += `<br><b>備註：</b>${data.remark}`;
+        }
+
+        document.getElementById('summaryText').innerHTML = html;
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').style.display = 'none';
+    }
+
+
+    // =========================================================
+    // 實際發送資料至 GAS (從對話框點擊確認後執行)
+    // =========================================================
+
+    function executeSubmit() {
+        closeConfirmModal();
+
+        document.getElementById('requestIdDisplay').textContent = currentRequestId;
+        document.getElementById('requestHint').style.display = 'block';
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = "傳送中...";
+        document.getElementById('loading').style.display = 'block';
+
         let timeoutId;
         const timeoutPromise = new Promise((_, reject) => {
             timeoutId = setTimeout(() => {
@@ -1846,7 +1974,7 @@
             headers: {
                 'Content-Type': 'text/plain;charset=utf-8'
             },
-            body: JSON.stringify(formData)
+            body: JSON.stringify(pendingFormData)
         })
         .then(res => {
             clearTimeout(timeoutId);
@@ -1885,7 +2013,7 @@
                 "若後端有啟用 Request ID 重複機制，可以使用相同 Request ID 再次送出以確認結果。"
             );
         });
-    });
+    }
 
 
     // =========================================================
@@ -1992,7 +2120,7 @@
 
         checkAddButtonState();
         
-        // 重新帶入無效工時預設值
+        // 重設後依然保留無效工時預設值
         setDefaultInvalidItems();
 
         machineInput.focus();
