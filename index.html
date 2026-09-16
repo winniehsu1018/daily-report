@@ -751,54 +751,118 @@
     // =========================================================
 
 function checkUserPermission(userId, displayName) {
-        document.getElementById('loginMsg').textContent = '正在驗證系統訪問權限...';
+    document.getElementById('loginMsg').textContent =
+        '正在驗證系統訪問權限...';
 
-        fetch(`${GAS_WEB_APP_URL}?action=checkAuth&userId=${encodeURIComponent(userId)}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.success && data.authorized) {
-                // 驗證通過：切換至主表單畫面
-                document.getElementById('loginView').style.display = 'none';
-                document.getElementById('mainFormView').style.display = 'block';
+    const authUrl =
+        `${GAS_WEB_APP_URL}?action=checkAuth&userId=${encodeURIComponent(userId)}&_=${Date.now()}`;
 
-                // 抓取後端白名單的名字（如果白名單沒填名字，才退回使用 LINE 名字）
-                realEmployeeName = data.employeeName || displayName;
+    console.log("========== 權限驗證開始 ==========");
+    console.log("GAS 原始網址：", GAS_WEB_APP_URL);
+    console.log("LINE User ID：", userId);
+    console.log("實際請求網址：", authUrl);
 
-                // 初始化表單
-                const today = new Date();
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const dd = String(today.getDate()).padStart(2, '0');
-                document.getElementById('date').value = mm + dd;
+    fetch(authUrl, {
+        method: 'GET',
+        cache: 'no-store',
+        redirect: 'follow'
+    })
+    .then(async res => {
 
-                // 預設帶入無效工時項目
-                setDefaultInvalidItems();
+        console.log("HTTP Status：", res.status);
+        console.log("HTTP OK：", res.ok);
+        console.log("Redirected：", res.redirected);
+        console.log("最終 Response URL：", res.url);
+        console.log("Content-Type：", res.headers.get('content-type'));
 
-                // 判斷角色身分（此處改用 realEmployeeName 顯示）
-                if (data.role === 'viewer') {
-                    document.getElementById('userInfo').innerHTML = `👤 登入身分: ${realEmployeeName} <span style="color: #ed8936; font-weight: bold;">(👀 僅檢視權限)</span>`;
-                    alert("ℹ️ 提醒：您目前的帳號權限為「僅供檢視」，無法填寫或送出報工資料。");
-                    
-                    document.getElementById('reportForm').querySelectorAll('input, select, button').forEach(el => el.disabled = true);
-                    return; 
-                } else {
-                    document.getElementById('userInfo').textContent = `👤 登入身分: ${realEmployeeName}`; // 👈 顯示白名單姓名
-                }
+        const text = await res.text();
 
-                fetchOptions();
-                checkAddButtonState();
+        console.log("伺服器原始回傳內容：", text);
+
+        if (!res.ok) {
+            throw new Error(
+                `HTTP ${res.status}：${text.substring(0, 300)}`
+            );
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error("JSON 解析失敗，實際收到：", text);
+            throw new Error(
+                `伺服器沒有回傳 JSON。實際內容：${text.substring(0, 300)}`
+            );
+        }
+    })
+    .then(data => {
+
+        console.log("權限驗證 JSON：", data);
+
+        if (data.success && data.authorized) {
+
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('mainFormView').style.display = 'block';
+
+            realEmployeeName =
+                data.employeeName || displayName;
+
+            const today = new Date();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+
+            document.getElementById('date').value = mm + dd;
+
+            setDefaultInvalidItems();
+
+            if (data.role === 'viewer') {
+
+                document.getElementById('userInfo').innerHTML =
+                    `👤 登入身分: ${realEmployeeName} ` +
+                    `<span style="color:#ed8936;font-weight:bold;">` +
+                    `(👀 僅檢視權限)</span>`;
+
+                alert(
+                    "ℹ️ 提醒：您目前的帳號權限為「僅供檢視」，" +
+                    "無法填寫或送出報工資料。"
+                );
+
+                document
+                    .getElementById('reportForm')
+                    .querySelectorAll('input, select, button')
+                    .forEach(el => el.disabled = true);
+
+                return;
+
             } else {
-                // 驗證失敗：顯示拒絕訪問訊息
-                document.getElementById('loginSpinner').style.display = 'none';
-                document.getElementById('loginMsg').innerHTML = `❌ <strong>很抱歉，您無權訪問此系統</strong><br><span style="font-size: 13px; color: #999;">帳號名稱: ${displayName}</span>`;
-            }
-        })
-        .catch(err => {
-            console.error("權限驗證連線失敗", err);
-            document.getElementById('loginSpinner').style.display = 'none';
-            document.getElementById('loginMsg').textContent = '⚠️ 無法連線至伺服器驗證權限，請稍後再試。';
-        });
-    }
 
+                document.getElementById('userInfo').textContent =
+                    `👤 登入身分: ${realEmployeeName}`;
+            }
+
+            fetchOptions();
+            checkAddButtonState();
+
+        } else {
+
+            document.getElementById('loginSpinner').style.display = 'none';
+
+            document.getElementById('loginMsg').innerHTML =
+                `❌ <strong>很抱歉，您無權訪問此系統</strong><br>` +
+                `<span style="font-size:13px;color:#999;">` +
+                `帳號名稱: ${displayName}</span>`;
+        }
+    })
+    .catch(err => {
+
+        console.error("========== 權限驗證失敗 ==========");
+        console.error(err);
+
+        document.getElementById('loginSpinner').style.display = 'none';
+
+        document.getElementById('loginMsg').textContent =
+            '⚠️ 無法連線至伺服器驗證權限，請稍後再試。';
+    });
+}
     // =========================================================
     // 預設帶入無效工時項目
     // =========================================================
