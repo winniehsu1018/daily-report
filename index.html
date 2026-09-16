@@ -712,110 +712,47 @@
         initializeLiff();
     };
 
-  // =========================================================
-// LIFF 初始化與身分驗證【速度診斷版】
-// =========================================================
 
-function initializeLiff() {
+    // =========================================================
+    // LIFF 初始化與身分驗證
+    // =========================================================
 
-    const totalStart = performance.now();
-
-    console.log("========== 🚀 LIFF 啟動速度測試 ==========");
-    console.log("① 開始 LIFF 初始化");
-
-    const initStart = performance.now();
-
-    liff.init({ liffId: LIFF_ID })
-
-    .then(() => {
-
-        console.log(
-            `② liff.init() 完成：${Math.round(performance.now() - initStart)} ms`
-        );
-
-        console.log("   isInClient =", liff.isInClient());
-        console.log("   isLoggedIn =", liff.isLoggedIn());
-
-        if (!liff.isInClient() && !liff.isLoggedIn()) {
-            console.log("⚠️ 尚未登入，執行 liff.login()");
-            liff.login();
-            return;
-        }
-
-        if (!liff.isLoggedIn()) {
-            document.getElementById('loginMsg').textContent =
-                '⚠️ LINE 尚未登入';
-
-            document.getElementById('loginSpinner').style.display =
-                'none';
-
-            return;
-        }
-
-        console.log("③ 開始執行 liff.getProfile()");
-
-        const profileStart = performance.now();
-
-        return liff.getProfile()
-            .then(profile => {
-
-                console.log(
-                    `④ liff.getProfile() 完成：${Math.round(performance.now() - profileStart)} ms`
-                );
-
-                return profile;
-            });
-    })
-
-    .then(profile => {
-
-        if (!profile) return;
-
-        userProfile = profile;
-
-        console.log(
-            `⑤ 準備 checkAuth，目前總耗時：${Math.round(performance.now() - totalStart)} ms`
-        );
-
-        checkUserPermission(
-            profile.userId,
-            profile.displayName,
-            totalStart
-        );
-    })
-
-    .catch(err => {
-
-        console.error(
-            "❌ LIFF Initialization failed",
-            err
-        );
-
-        console.log(
-            `❌ LIFF 失敗前總耗時：${Math.round(performance.now() - totalStart)} ms`
-        );
-
-        document.getElementById('loginMsg').textContent =
-            '⚠️ LINE 登入初始化失敗';
-
-        document.getElementById('loginSpinner').style.display =
-            'none';
-    });
-}
+    function initializeLiff() {
+        liff.init({ liffId: LIFF_ID })
+        .then(() => {
+            if (!liff.isInClient() && !liff.isLoggedIn()) {
+                liff.login();
+                return;
+            }
+            if (!liff.isLoggedIn()) {
+                document.getElementById('loginMsg').textContent = '⚠️ LINE 尚未登入';
+                document.getElementById('loginSpinner').style.display = 'none';
+                return;
+            }
+            return liff.getProfile();
+        })
+        .then(profile => {
+            if (!profile) return;
+            userProfile = profile;
+            
+            // 向 GAS 驗證該 userId 是否在授權白名單內
+            checkUserPermission(profile.userId, profile.displayName);
+        })
+        .catch(err => {
+            console.error('LIFF Initialization failed', err);
+            document.getElementById('loginMsg').textContent = '⚠️ LINE 登入初始化失敗';
+            document.getElementById('loginSpinner').style.display = 'none';
+        });
+    }
 
 
-// =========================================================
-// GAS 權限驗證【速度診斷版】
-// =========================================================
+    // =========================================================
+    // 後端權限驗證 (白名單檢查)
+    // =========================================================
 
-function checkUserPermission(userId, displayName, totalStart) {
-
+function checkUserPermission(userId, displayName) {
     document.getElementById('loginMsg').textContent =
         '正在驗證系統訪問權限...';
-
-    const authStart = performance.now();
-
-    console.log("⑥ 開始 GAS checkAuth");
 
     const authUrl =
         `${GAS_WEB_APP_URL}?action=checkAuth` +
@@ -826,123 +763,52 @@ function checkUserPermission(userId, displayName, totalStart) {
         method: 'GET',
         cache: 'no-store'
     })
-
     .then(res => {
-
-        console.log(
-            `⑦ GAS 收到 HTTP 回應：${Math.round(performance.now() - authStart)} ms`
-        );
-
-        console.log("   HTTP Status =", res.status);
-        console.log("   Redirected =", res.redirected);
-
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
         }
-
         return res.json();
     })
-
     .then(data => {
-
-        console.log(
-            `⑧ GAS JSON 解析完成：${Math.round(performance.now() - authStart)} ms`
-        );
-
-        console.log("   權限結果 =", data);
-        console.log("   GAS 內部耗時 =", data.debugTiming);
-
-        if (totalStart !== undefined) {
-            console.log(
-                `🏁 LIFF → checkAuth 總耗時：${Math.round(performance.now() - totalStart)} ms`
-            );
-        }
-
-        console.log("========== 🏁 速度測試結束 ==========");
-
-
-        // =====================================================
-        // 以下維持你原本的權限處理
-        // =====================================================
-
         if (data.success && data.authorized) {
 
-            document.getElementById('loginView').style.display =
-                'none';
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('mainFormView').style.display = 'block';
 
-            document.getElementById('mainFormView').style.display =
-                'block';
-
-            realEmployeeName =
-                data.employeeName || displayName;
-
+            realEmployeeName = data.employeeName || displayName;
 
             const today = new Date();
-
-            const mm =
-                String(today.getMonth() + 1)
-                    .padStart(2, '0');
-
-            const dd =
-                String(today.getDate())
-                    .padStart(2, '0');
-
-            document.getElementById('date').value =
-                mm + dd;
-
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('date').value = mm + dd;
 
             setDefaultInvalidItems();
 
-
-            // =============================================
-            // Viewer
-            // =============================================
-
             if (data.role === 'viewer') {
-
                 document.getElementById('userInfo').innerHTML =
                     `👤 登入身分: ${realEmployeeName} ` +
                     `<span style="color:#ed8936;font-weight:bold;">` +
                     `(👀 僅檢視權限)</span>`;
 
-
                 alert(
                     "ℹ️ 提醒：您目前的帳號權限為「僅供檢視」，無法填寫或送出報工資料。"
                 );
 
-
-                document
-                    .getElementById('reportForm')
-                    .querySelectorAll(
-                        'input, select, button'
-                    )
-                    .forEach(el => {
-                        el.disabled = true;
-                    });
-
+                document.getElementById('reportForm')
+                    .querySelectorAll('input, select, button')
+                    .forEach(el => el.disabled = true);
 
                 return;
             }
 
-
-            // =============================================
-            // Editor
-            // =============================================
-
             document.getElementById('userInfo').textContent =
                 `👤 登入身分: ${realEmployeeName}`;
 
-
             fetchOptions();
-
             checkAddButtonState();
 
-
         } else {
-
-            document.getElementById('loginSpinner').style.display =
-                'none';
-
+            document.getElementById('loginSpinner').style.display = 'none';
 
             document.getElementById('loginMsg').innerHTML =
                 `❌ <strong>很抱歉，您無權訪問此系統</strong><br>` +
@@ -950,21 +816,10 @@ function checkUserPermission(userId, displayName, totalStart) {
                 `帳號名稱: ${displayName}</span>`;
         }
     })
-
     .catch(err => {
+        console.error("權限驗證連線失敗", err);
 
-        console.error(
-            "❌ 權限驗證連線失敗",
-            err
-        );
-
-        console.log(
-            `❌ checkAuth 失敗前耗時：${Math.round(performance.now() - authStart)} ms`
-        );
-
-        document.getElementById('loginSpinner').style.display =
-            'none';
-
+        document.getElementById('loginSpinner').style.display = 'none';
         document.getElementById('loginMsg').textContent =
             '⚠️ 無法連線至伺服器驗證權限，請稍後再試。';
     });
