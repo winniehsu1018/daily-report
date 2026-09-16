@@ -755,95 +755,59 @@ function checkUserPermission(userId, displayName) {
         '正在驗證系統訪問權限...';
 
     const authUrl =
-        `${GAS_WEB_APP_URL}?action=checkAuth&userId=${encodeURIComponent(userId)}&_=${Date.now()}`;
-
-    console.log("========== 權限驗證開始 ==========");
-    console.log("GAS 原始網址：", GAS_WEB_APP_URL);
-    console.log("LINE User ID：", userId);
-    console.log("實際請求網址：", authUrl);
+        `${GAS_WEB_APP_URL}?action=checkAuth` +
+        `&userId=${encodeURIComponent(userId)}` +
+        `&_=${Date.now()}`;
 
     fetch(authUrl, {
         method: 'GET',
-        cache: 'no-store',
-        redirect: 'follow'
+        cache: 'no-store'
     })
-    .then(async res => {
-
-        console.log("HTTP Status：", res.status);
-        console.log("HTTP OK：", res.ok);
-        console.log("Redirected：", res.redirected);
-        console.log("最終 Response URL：", res.url);
-        console.log("Content-Type：", res.headers.get('content-type'));
-
-        const text = await res.text();
-
-        console.log("伺服器原始回傳內容：", text);
-
+    .then(res => {
         if (!res.ok) {
-            throw new Error(
-                `HTTP ${res.status}：${text.substring(0, 300)}`
-            );
+            throw new Error(`HTTP ${res.status}`);
         }
-
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            console.error("JSON 解析失敗，實際收到：", text);
-            throw new Error(
-                `伺服器沒有回傳 JSON。實際內容：${text.substring(0, 300)}`
-            );
-        }
+        return res.json();
     })
     .then(data => {
-
-        console.log("權限驗證 JSON：", data);
-
         if (data.success && data.authorized) {
 
             document.getElementById('loginView').style.display = 'none';
             document.getElementById('mainFormView').style.display = 'block';
 
-            realEmployeeName =
-                data.employeeName || displayName;
+            realEmployeeName = data.employeeName || displayName;
 
             const today = new Date();
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const dd = String(today.getDate()).padStart(2, '0');
-
             document.getElementById('date').value = mm + dd;
 
             setDefaultInvalidItems();
 
             if (data.role === 'viewer') {
-
                 document.getElementById('userInfo').innerHTML =
                     `👤 登入身分: ${realEmployeeName} ` +
                     `<span style="color:#ed8936;font-weight:bold;">` +
                     `(👀 僅檢視權限)</span>`;
 
                 alert(
-                    "ℹ️ 提醒：您目前的帳號權限為「僅供檢視」，" +
-                    "無法填寫或送出報工資料。"
+                    "ℹ️ 提醒：您目前的帳號權限為「僅供檢視」，無法填寫或送出報工資料。"
                 );
 
-                document
-                    .getElementById('reportForm')
+                document.getElementById('reportForm')
                     .querySelectorAll('input, select, button')
                     .forEach(el => el.disabled = true);
 
                 return;
-
-            } else {
-
-                document.getElementById('userInfo').textContent =
-                    `👤 登入身分: ${realEmployeeName}`;
             }
+
+            document.getElementById('userInfo').textContent =
+                `👤 登入身分: ${realEmployeeName}`;
 
             fetchOptions();
             checkAddButtonState();
 
         } else {
-
             document.getElementById('loginSpinner').style.display = 'none';
 
             document.getElementById('loginMsg').innerHTML =
@@ -853,12 +817,9 @@ function checkUserPermission(userId, displayName) {
         }
     })
     .catch(err => {
-
-        console.error("========== 權限驗證失敗 ==========");
-        console.error(err);
+        console.error("權限驗證連線失敗", err);
 
         document.getElementById('loginSpinner').style.display = 'none';
-
         document.getElementById('loginMsg').textContent =
             '⚠️ 無法連線至伺服器驗證權限，請稍後再試。';
     });
