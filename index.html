@@ -1072,6 +1072,40 @@ function checkUserPermission(userId, displayName) {
 
 function fetchOptions() {
 
+    // =====================================================
+    // 1. 機台清單先從 localStorage 立即載入
+    //    不等待 GAS 回應
+    // =====================================================
+
+    const cachedMachines =
+        localStorage.getItem('cached_machines');
+
+    if (cachedMachines) {
+        try {
+            const parsedMachines =
+                JSON.parse(cachedMachines);
+
+            if (Array.isArray(parsedMachines)) {
+                allMachines = parsedMachines
+                    .map(m => String(m).trim())
+                    .filter(Boolean);
+            }
+
+        } catch (e) {
+            console.error(
+                "⚠️ 本地機台快取解析失敗",
+                e
+            );
+
+            allMachines = [];
+        }
+    }
+
+
+    // =====================================================
+    // 2. 背景向 GAS 取得最新資料
+    // =====================================================
+
     const url =
         `${GAS_WEB_APP_URL}?action=getOptions&_=${Date.now()}`;
 
@@ -1089,68 +1123,58 @@ function fetchOptions() {
     })
     .then(data => {
 
-        const serverVersion = data.version;
-        const localVersion =
-            localStorage.getItem('cached_version');
+        // =================================================
+        // 3. GAS 回來後，用最新機台清單更新 allMachines
+        // =================================================
 
-        // 機台清單
-        allMachines = (data.machines || [])
-            .map(m => String(m).trim())
-            .filter(Boolean);
+        const latestMachines =
+            (data.machines || [])
+                .map(m => String(m).trim())
+                .filter(Boolean);
 
-        // 件號 / 品名
-        // 來源仍然是 GAS CacheService
-        allParts = (data.parts || [])
-            .map(p => String(p).trim())
-            .filter(Boolean);
+        if (latestMachines.length > 0) {
 
-        // 只有機台清單存入 localStorage
-        if (
-            serverVersion !== localVersion ||
-            !localStorage.getItem('cached_machines')
-        ) {
+            allMachines = latestMachines;
 
+            // 同步更新 localStorage
             localStorage.setItem(
                 'cached_machines',
-                JSON.stringify(allMachines)
+                JSON.stringify(latestMachines)
             );
 
-            localStorage.setItem(
-                'cached_version',
-                serverVersion
-            );
-
-            console.log(
-                "⚡ 機台清單已自動更新至最新版本"
-            );
+            // 保留原本版本資訊
+            if (data.version) {
+                localStorage.setItem(
+                    'cached_version',
+                    data.version
+                );
+            }
         }
+
+
+        // =================================================
+        // 4. 件號 / 品名維持原本方式
+        //    不存 localStorage
+        //    仍由 GAS CacheService 管理
+        // =================================================
+
+        allParts =
+            (data.parts || [])
+                .map(p => String(p).trim())
+                .filter(Boolean);
+
     })
     .catch(err => {
 
         console.error(
-            "⚠️ 無法取得選單資料，機台改用本地快取",
+            "⚠️ 無法取得最新選單資料，機台繼續使用本地快取",
             err
         );
 
-        // 只有機台使用 localStorage 備援
-        const cachedMachines =
-            localStorage.getItem('cached_machines');
-
-        if (cachedMachines) {
-            try {
-                allMachines =
-                    JSON.parse(cachedMachines);
-            } catch (e) {
-                console.error(
-                    "⚠️ 本地機台快取解析失敗",
-                    e
-                );
-                allMachines = [];
-            }
-        }
+        // 不需要再做其他處理
+        // 因為機台清單一開始就已經從 localStorage 載入
     });
 }
-
     // =========================================================
     // 取得上一筆資料 (已完全移除應有工時帶入)
     // =========================================================
