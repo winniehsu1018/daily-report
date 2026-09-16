@@ -850,6 +850,7 @@ function checkUserPermission(userId, displayName, totalStart) {
         );
 
         console.log("   權限結果 =", data);
+        console.log("   GAS 內部耗時 =", data.debugTiming);
 
         if (totalStart !== undefined) {
             console.log(
