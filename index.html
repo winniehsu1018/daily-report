@@ -771,6 +771,89 @@ function getProductionDateMMDD() {
 
 
     // =========================================================
+    // GAS GET 共用背景重試
+    // 404 / 429 / 5xx / 暫時性網路異常：
+    // 第一次失敗等 1 秒，第二次失敗等 2 秒，最多 3 次。
+    // 不重新整理整個頁面，避免 LIFF 重跑及使用者已填資料遺失。
+    // =========================================================
+    async function fetchGasJsonWithRetry(url, label = 'GAS GET') {
+        const MAX_ATTEMPTS = 3;
+        const RETRY_DELAYS = [1000, 2000];
+
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            let res;
+
+            try {
+                res = await fetch(url, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    redirect: 'follow'
+                });
+            } catch (networkError) {
+                if (attempt < MAX_ATTEMPTS) {
+                    const delay = RETRY_DELAYS[attempt - 1] || 2000;
+                    console.warn(
+                        `[${label}] 網路異常，第 ${attempt} 次失敗，${delay / 1000} 秒後重試`,
+                        networkError
+                    );
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue;
+                }
+
+                throw new Error(
+                    `${label} 網路連線失敗｜嘗試 ${attempt}/${MAX_ATTEMPTS}｜` +
+                    (networkError.message || networkError)
+                );
+            }
+
+            if (res.ok) {
+                const rawText = await res.text();
+
+                try {
+                    return JSON.parse(rawText);
+                } catch (jsonError) {
+                    throw new Error(
+                        `${label} 回傳格式異常｜` +
+                        (rawText
+                            ? rawText.replace(/\s+/g, ' ').trim().slice(0, 300)
+                            : '無回應內容')
+                    );
+                }
+            }
+
+            const retryable =
+                res.status === 404 ||
+                res.status === 429 ||
+                res.status >= 500;
+
+            if (retryable && attempt < MAX_ATTEMPTS) {
+                const delay = RETRY_DELAYS[attempt - 1] || 2000;
+
+                console.warn(
+                    `[${label}] HTTP ${res.status}，第 ${attempt} 次失敗，` +
+                    `${delay / 1000} 秒後重試`
+                );
+
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+
+            const responseText = await res.text().catch(() => '');
+            const detail = responseText
+                ? responseText.replace(/\s+/g, ' ').trim().slice(0, 300)
+                : '無回應內容';
+
+            throw new Error(
+                `${label} 失敗｜HTTP ${res.status}｜` +
+                `嘗試 ${attempt}/${MAX_ATTEMPTS}｜${detail}`
+            );
+        }
+
+        throw new Error(`${label} 呼叫失敗`);
+    }
+
+
+    // =========================================================
     // 後端權限驗證 (白名單檢查)
     // =========================================================
 
@@ -783,16 +866,10 @@ function checkUserPermission(userId, displayName) {
         `&userId=${encodeURIComponent(userId)}` +
         `&_=${Date.now()}`;
 
-    fetch(authUrl, {
-        method: 'GET',
-        cache: 'no-store'
-    })
-    .then(res => {
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-        return res.json();
-    })
+    fetchGasJsonWithRetry(
+        authUrl,
+        'checkAuth'
+    )
     .then(data => {
         if (data.success && data.authorized) {
 
@@ -1131,18 +1208,10 @@ function fetchOptions() {
     const url =
         `${GAS_WEB_APP_URL}?action=getOptions&_=${Date.now()}`;
 
-    fetch(url, {
-        method: 'GET',
-        cache: 'no-store'
-    })
-    .then(res => {
-
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-
-        return res.json();
-    })
+    fetchGasJsonWithRetry(
+        url,
+        'getOptions'
+    )
     .then(data => {
 
         // =================================================
@@ -1245,22 +1314,10 @@ function fetchLastRecord() {
         `&_=${Date.now()}`;
 
 
-    fetch(url, {
-        method: 'GET',
-        cache: 'no-store'
-    })
-
-    .then(res => {
-
-        // HTTP 不是 2xx
-        // 例如 404 / 500
-        // 不要再直接執行 res.json()
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-
-        return res.json();
-    })
+    fetchGasJsonWithRetry(
+        url,
+        'getLastRecord'
+    )
 
     .then(data => {
 
