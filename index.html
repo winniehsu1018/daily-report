@@ -338,6 +338,20 @@
             background: #5a6268;
         }
 
+        /* 回報成功提示：不阻斷下一筆操作 */
+        #successBanner {
+            display: none;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 12px 14px;
+            margin: 0 0 15px 0;
+            border-radius: 7px;
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1.5;
+        }
+
         /* 管理員專用區塊：預設完全隱藏 */
         #adminPanel { display:none; margin-top:24px; padding:15px; background:#fff8e1; border:1px solid #ffe082; border-radius:8px; }
         #adminPanel h3 { margin:0 0 10px 0; font-size:17px; color:#555; }
@@ -361,6 +375,8 @@
     <!-- 原始表單畫面 (預設隱藏，通過驗證後顯示) -->
     <div id="mainFormView" style="display: none;">
         <h2>CNC 生產日報回報</h2>
+
+        <div id="successBanner" role="status" aria-live="polite"></div>
 
         <div id="userInfo">正在取得 LINE 身分中...</div>
 
@@ -689,7 +705,7 @@
     // 基本設定
     // =========================================================
 
-    const GAS_WEB_APP_URL =
+ const GAS_WEB_APP_URL =
         "https://script.google.com/macros/s/AKfycbwqDY8e31iuKrchHkJUjicPK57UytKRz6DdztQ7-2fGiVNsEYpfiHMaYlQ1YdHBKREA8Q/exec";
 
     const LIFF_ID =
@@ -743,6 +759,7 @@ function getProductionDateMMDD() {
 
     let currentRequestId = null;
     let pendingFormData = null;
+    let successBannerTimer = null;
 
 
     // =========================================================
@@ -1062,6 +1079,15 @@ function checkUserPermission(userId, displayName) {
         // 解鎖後續欄位
         unlockFormFields();
         handleShiftChange();
+
+        // 白班預設 08:00～17:00 / 540 分鐘，但仍可手動修改
+        if (shiftName === '白班') {
+            const startTimeEl = document.getElementById('startTime');
+            const endTimeEl = document.getElementById('endTime');
+            if (!startTimeEl.value.trim()) startTimeEl.value = '08:00';
+            if (!endTimeEl.value.trim()) endTimeEl.value = '17:00';
+            setWorkingHours('540');
+        }
 
         // 如果機台已經有選好，立刻撈取上一筆資料
         if (selectedMachine) {
@@ -1427,16 +1453,10 @@ function fetchLastRecord() {
             // 帶入本次「開始時間」
             // -------------------------------------------------
 
-            if (
-                data.endTime &&
-                !startTimeEl.value.trim()
-            ) {
-
-                startTimeEl.value =
-                    data.endTime;
-
-                lastRecordEndTime =
-                    data.endTime;
+            // 有上一筆時，上一筆結算時間優先於白班預設 08:00
+            if (data.endTime) {
+                startTimeEl.value = data.endTime;
+                lastRecordEndTime = data.endTime;
             }
 
 
@@ -2412,8 +2432,11 @@ function fetchLastRecord() {
                 return;
             }
 
-            alert(data.message || "✅ 回報成功！");
+            // 先保存本次成功資料，因為 resetFormAfterSubmit() 會清空欄位
+            const submittedData = { ...(pendingFormData || {}) };
+
             resetFormAfterSubmit();
+            showSuccessBanner(submittedData);
         })
         .catch(err => {
             document.getElementById('loading').style.display = 'none';
@@ -2430,6 +2453,38 @@ function fetchLastRecord() {
                 "若後端有啟用 Request ID 重複機制，可以使用相同 Request ID 再次送出以確認結果。"
             );
         });
+    }
+
+
+    // =========================================================
+    // 顯示非阻斷式成功訊息（約 4 秒後自動隱藏）
+    // =========================================================
+    function showSuccessBanner(submittedData) {
+        const banner = document.getElementById('successBanner');
+        if (!banner) return;
+
+        const machine = String(submittedData.machine || '').trim();
+        const part = String(submittedData.part || '').trim();
+        const qty = String(submittedData.qty ?? '').trim();
+
+        const details = [];
+        if (part) details.push(part);
+        if (qty !== '') details.push(`${qty} pcs`);
+
+        banner.textContent =
+            `✅ ${machine ? machine + ' ' : ''}回報成功` +
+            (details.length ? `｜${details.join('｜')}` : '');
+        banner.style.display = 'block';
+
+        if (successBannerTimer) {
+            clearTimeout(successBannerTimer);
+        }
+
+        successBannerTimer = setTimeout(() => {
+            banner.style.display = 'none';
+            banner.textContent = '';
+            successBannerTimer = null;
+        }, 4000);
     }
 
 
@@ -2452,19 +2507,22 @@ function fetchLastRecord() {
         lastRecordEndTime = null;
         currentRequestId = null;
 
-        // 重設班別按鈕狀態
-        document.getElementById('shift').value = '';
-        document.getElementById('dayShiftBtn').className = 'shift-btn';
-        document.getElementById('nightShiftBtn').className = 'shift-btn';
+        // 保留目前班別，方便連續回報下一台機台
+        const currentShift = document.getElementById('shift').value;
 
-        const fieldsToLock = [
-            'endTime', 'workingHoursDisplay', 'qty', 'unitSeconds', 'addInvalidBtn', 
-            'remark', 'submitBtn'
-        ];
-        fieldsToLock.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.disabled = true;
-        });
+        // 班別已選定，因此下一筆不重新鎖住輸入欄位
+        if (currentShift) {
+            unlockFormFields();
+            handleShiftChange();
+
+            // 白班下一台先恢復標準預設值；選機台後若有上一筆，
+            // fetchLastRecord() 會再用上一筆結算時間覆蓋開始時間。
+            if (currentShift === '白班') {
+                document.getElementById('startTime').value = '08:00';
+                document.getElementById('endTime').value = '17:00';
+                setWorkingHours('540');
+            }
+        }
 
         document.getElementById('requestHint').style.display = 'none';
         document.getElementById('machineError').style.display = 'none';
