@@ -1038,8 +1038,19 @@ function checkUserPermission(userId, displayName) {
         document.getElementById('unitSeconds').value = '';
         lastRecordEndTime = null;
 
+        // 若班別已經保留（例如第一筆送出後繼續填第二台），
+        // 選擇新機台時先恢復該班別的標準預設時間。
+        // 若該機台當天已有上一筆資料，fetchLastRecord() 仍會再以
+        // 「上一筆結算時間」覆蓋本次開始時間，不影響原本續報邏輯。
+        const currentShift = document.getElementById('shift').value;
+        if (currentShift === '白班') {
+            document.getElementById('startTime').value = '08:00';
+            document.getElementById('endTime').value = '17:00';
+            setWorkingHours('540');
+        }
+
         // 如果班別也已經選了，立刻撈取上一筆資料
-        if (document.getElementById('shift').value) {
+        if (currentShift) {
             fetchLastRecord();
         }
     }
