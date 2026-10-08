@@ -875,7 +875,13 @@ function getProductionDateMMDD() {
                 body: JSON.stringify({ action: 'lightLogin', pin: pin })
             });
             if (!response.ok) throw new Error('登入連線失敗 HTTP ' + response.status);
-            const data = await response.json();
+            const rawText = await response.text();
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseError) {
+                throw new Error('GAS 未回傳 PIN 登入資料，請確認 HTML 的 GAS 網址及 /exec 部署版本已更新。');
+            }
             if (!data || data.success !== true || !data.loginToken) {
                 throw new Error((data && data.message) || '登入失敗');
             }
