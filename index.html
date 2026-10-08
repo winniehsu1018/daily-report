@@ -6,9 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CNC 生產日報回報系統</title>
 
-    <!-- 引入 LINE LIFF SDK -->
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -358,6 +355,55 @@
         .admin-btn { width:100%; border:none; border-radius:5px; padding:11px; margin-top:8px; font-size:16px; font-weight:bold; cursor:pointer; background:#6c757d; color:white; }
         .admin-btn:disabled { background:#cccccc; }
         #adminStatus { margin-top:10px; font-size:13px; color:#666; line-height:1.5; }
+
+        /* 生產批次關聯 */
+        .batch-link-box { border:1px solid #d9e2ec; background:#f8fbff; border-radius:7px; padding:10px 12px; }
+        .batch-status { font-size:13px; line-height:1.5; margin-top:6px; color:#66788a; }
+        .batch-status.ok { color:#1f7a3f; font-weight:bold; }
+        .batch-status.warn { color:#a66a00; font-weight:bold; }
+
+        .batch-choice-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 7px;
+        }
+        .batch-choice-btn {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            border-radius: 7px;
+            padding: 11px 12px;
+            text-align: left;
+            font-size: 16px;
+            line-height: 1.35;
+            color: #263238;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .batch-choice-btn.selected {
+            border: 2px solid #1976d2;
+            background: #eaf4ff;
+            font-weight: bold;
+        }
+        .batch-choice-btn.legacy {
+            background: #fffaf0;
+        }
+        .batch-choice-btn:disabled {
+            cursor: default;
+            opacity: .75;
+        }
+
+
+        /* 每次開啟登入畫面 */
+        #loginView { max-width: 520px; margin: 0 auto; text-align: left; padding: 20px; }
+        #loginView h2 { text-align: center; }
+        #loginView .form-group { margin-bottom: 18px; }
+        #loginView input { width:100%; box-sizing:border-box; font-size:18px; padding:12px 14px; }
+        .light-login-btn { width:100%; background:#007bff; color:white; border:none; padding:13px 16px; font-size:18px; font-weight:bold; border-radius:6px; cursor:pointer; margin-top:4px; }
+        .light-login-btn:hover { background:#0056b3; }
+        .light-login-btn:disabled { background:#cccccc; cursor:not-allowed; }
+
     </style>
 </head>
 
@@ -365,11 +411,17 @@
 
 <div class="container">
 
-    <!-- 身分驗證等待 / 錯誤畫面 -->
+    <!-- 每次開啟皆需登入：個人 PIN -->
     <div id="loginView">
         <h2>CNC 生產日報回報系統</h2>
-        <div class="spinner" id="loginSpinner"></div>
-        <p id="loginMsg">正在驗證您的 LINE 身分權限，請稍候...</p>
+        <p id="loginMsg" style="text-align:center;color:#666;">請輸入個人 PIN</p>
+        <div class="form-group">
+            <label for="employeePin">PIN：</label>
+            <input type="password" id="employeePin" autocomplete="current-password" inputmode="numeric" placeholder="請輸入個人 PIN" maxlength="6" pattern="[0-9]{4}|[0-9]{6}">
+        </div>
+        <button type="button" id="lightLoginBtn" class="light-login-btn" onclick="submitLightLogin()">登入</button>
+        <div id="loginSpinner" class="spinner" style="display:none;margin:15px auto 0;"></div>
+        <div class="time-hint" style="margin-top:12px;text-align:center;">💡 每次開啟或重新整理網頁後，需重新登入</div>
     </div>
 
     <!-- 原始表單畫面 (預設隱藏，通過驗證後顯示) -->
@@ -378,7 +430,7 @@
 
         <div id="successBanner" role="status" aria-live="polite"></div>
 
-        <div id="userInfo">正在取得 LINE 身分中...</div>
+        <div id="userInfo">尚未登入</div>
 
         <form
             id="reportForm"
@@ -458,6 +510,20 @@
                     id="partError"
                 >
                     ❌ 請從品名清單中選擇有效的品名規格
+                </div>
+            </div>
+
+            <!-- 生產批次關聯：0批次自動無批次ID；有正式批次時必須確認 -->
+            <div class="form-group">
+                <label for="batchSelect">生產批次（請確認）：</label>
+                <div class="batch-link-box">
+                    <div id="batchChoiceList" class="batch-choice-list">
+                        <button type="button" class="batch-choice-btn" disabled>請先選擇件號</button>
+                    </div>
+                    <input type="hidden" id="operation" value="">
+                    <div id="batchStatus" class="batch-status">
+                        💡 選擇件號後，系統會自動查詢尚未完成的生產批次。
+                    </div>
                 </div>
             </div>
 
@@ -705,12 +771,9 @@
     // 基本設定
     // =========================================================
 
- const GAS_WEB_APP_URL =
+   const GAS_WEB_APP_URL =
         "https://script.google.com/macros/s/AKfycbwqDY8e31iuKrchHkJUjicPK57UytKRz6DdztQ7-2fGiVNsEYpfiHMaYlQ1YdHBKREA8Q/exec";
 
-    const LIFF_ID =
-        "2011225260-9FkqdTAH";
-    
 // =========================================================
 // 取得目前「生產日期」
 // 每天凌晨 04:30 前仍歸屬前一天
@@ -755,6 +818,11 @@ function getProductionDateMMDD() {
     let selectedMachine = "";
     let selectedPart = "";
 
+    let selectedBatchId = "";
+    let batchSelectionMade = false;
+    let currentOperation = "";
+    let batchLookupRequestSeq = 0;
+
     let lastRecordRequestSeq = 0;
 
     let currentRequestId = null;
@@ -763,52 +831,95 @@ function getProductionDateMMDD() {
 
 
     // =========================================================
-    // 頁面初始化
+    // 頁面初始化：每次開啟 / 重新整理都重新登入
     // =========================================================
+    let lightLoginToken = '';
 
     window.onload = function () {
-        initializeLiff();
+        initializeLightLogin();
     };
 
+    function initializeLightLogin() {
+        lightLoginToken = '';
+        userProfile = {};
+        realEmployeeName = '';
+        isCurrentUserAdmin = false;
 
-    // =========================================================
-    // LIFF 初始化與身分驗證
-    // =========================================================
-
-    function initializeLiff() {
-        liff.init({ liffId: LIFF_ID })
-        .then(() => {
-            if (!liff.isInClient() && !liff.isLoggedIn()) {
-                liff.login();
-                return;
-            }
-            if (!liff.isLoggedIn()) {
-                document.getElementById('loginMsg').textContent = '⚠️ LINE 尚未登入';
-                document.getElementById('loginSpinner').style.display = 'none';
-                return;
-            }
-            return liff.getProfile();
-        })
-        .then(profile => {
-            if (!profile) return;
-            userProfile = profile;
-            
-            // 向 GAS 驗證該 userId 是否在授權白名單內
-            checkUserPermission(profile.userId, profile.displayName);
-        })
-        .catch(err => {
-            console.error('LIFF Initialization failed', err);
-            document.getElementById('loginMsg').textContent = '⚠️ LINE 登入初始化失敗';
-            document.getElementById('loginSpinner').style.display = 'none';
-        });
+        document.getElementById('mainFormView').style.display = 'none';
+        document.getElementById('loginView').style.display = 'block';
+        document.getElementById('date').value = getProductionDateMMDD();
+        document.getElementById('loginSpinner').style.display = 'none';
+        document.getElementById('loginMsg').textContent = '請輸入個人 PIN';
+        setTimeout(() => document.getElementById('employeePin').focus(), 50);
     }
 
+    async function submitLightLogin() {
+        const pin = document.getElementById('employeePin').value.trim();
+        const btn = document.getElementById('lightLoginBtn');
+
+        if (!/^(?:[0-9]{4}|[0-9]{6})$/.test(pin)) {
+            document.getElementById('loginMsg').textContent = '請輸入有效的個人 PIN。';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = '登入中...';
+        document.getElementById('loginSpinner').style.display = 'block';
+        document.getElementById('loginMsg').textContent = '正在驗證...';
+
+        try {
+            // PIN 不放在網址，改用 POST 傳送至 GAS
+            const response = await fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'lightLogin', pin: pin })
+            });
+            if (!response.ok) throw new Error('登入連線失敗 HTTP ' + response.status);
+            const data = await response.json();
+            if (!data || data.success !== true || !data.loginToken) {
+                throw new Error((data && data.message) || '登入失敗');
+            }
+
+            lightLoginToken = data.loginToken;
+            userProfile = { userId: data.employeeCode || '' };
+            realEmployeeName = data.employeeName || data.employeeCode || '';
+            isCurrentUserAdmin = data.isAdmin === true;
+
+            document.getElementById('employeePin').value = '';
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('mainFormView').style.display = 'block';
+            document.getElementById('userInfo').textContent = '👤 登入身分：' + realEmployeeName;
+
+            const adminPanel = document.getElementById('adminPanel');
+            if (adminPanel) adminPanel.style.display = isCurrentUserAdmin ? 'block' : 'none';
+
+            setDefaultInvalidItems();
+            fetchOptions();
+            checkAddButtonState();
+            setTimeout(() => machineInput.focus(), 50);
+        } catch (err) {
+            document.getElementById('loginMsg').textContent = '❌ ' + ((err && err.message) || '登入失敗，請稍後再試。');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '登入';
+            document.getElementById('loginSpinner').style.display = 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' &&
+            document.getElementById('loginView').style.display !== 'none' &&
+            document.activeElement && document.activeElement.id === 'employeePin') {
+            event.preventDefault();
+            submitLightLogin();
+        }
+    });
 
     // =========================================================
     // GAS GET 共用背景重試
     // 404 / 429 / 5xx / 暫時性網路異常：
     // 第一次失敗等 1 秒，第二次失敗等 2 秒，最多 3 次。
-    // 不重新整理整個頁面，避免 LIFF 重跑及使用者已填資料遺失。
+    // 不重新整理整個頁面，避免整頁重跑及使用者已填資料遺失。
     // =========================================================
     async function fetchGasJsonWithRetry(url, label = 'GAS GET') {
         const MAX_ATTEMPTS = 3;
@@ -979,7 +1090,7 @@ function checkUserPermission(userId, displayName) {
         status.textContent = `⏳ 正在${label}...`;
 
         const url = `${GAS_WEB_APP_URL}?action=${encodeURIComponent(action)}` +
-                    `&userId=${encodeURIComponent(userProfile.userId)}` +
+                    `&loginToken=${encodeURIComponent(lightLoginToken)}` +
                     `&_=${Date.now()}`;
         try {
             const data = await fetchGasJsonWithRetry(url, label);
@@ -1021,6 +1132,28 @@ function checkUserPermission(userId, displayName) {
 
 
     // =========================================================
+    // 白班時間保護
+    // 只在欄位為空時補值，不覆蓋員工手動修改或上一筆結算時間。
+    // =========================================================
+    function ensureWhiteShiftTimes() {
+        const shiftEl = document.getElementById('shift');
+        const dayBtn = document.getElementById('dayShiftBtn');
+        const isDayShift =
+            (shiftEl && shiftEl.value === '白班') ||
+            (dayBtn && dayBtn.classList.contains('active-day'));
+
+        if (!isDayShift) return;
+
+        const startEl = document.getElementById('startTime');
+        const endEl = document.getElementById('endTime');
+
+        if (startEl && !startEl.value.trim()) startEl.value = '08:00';
+        if (endEl && !endEl.value.trim()) endEl.value = '17:00';
+        setWorkingHours('540');
+    }
+
+
+    // =========================================================
     // 選擇機台邏輯
     // =========================================================
 
@@ -1033,24 +1166,23 @@ function checkUserPermission(userId, displayName) {
         isUserTypingPart = false;
         document.getElementById('part').value = '';
         selectedPart = "";
-        document.getElementById('startTime').value = '';
-        document.getElementById('endTime').value = '';
+        batchLookupRequestSeq++;
+        resetBatchLink();
+        const selectedShift = document.getElementById('shift').value;
+
+        // 中班仍由員工/上一筆資料決定時間；白班不再先清空再補值，
+        // 避免任何後續事件或非同步流程把欄位留在空白狀態。
+        if (selectedShift === '中班') {
+            document.getElementById('startTime').value = '';
+            document.getElementById('endTime').value = '';
+        } else {
+            ensureWhiteShiftTimes();
+        }
+
         document.getElementById('unitSeconds').value = '';
         lastRecordEndTime = null;
 
-        // 若班別已經保留（例如第一筆送出後繼續填第二台），
-        // 選擇新機台時先恢復該班別的標準預設時間。
-        // 若該機台當天已有上一筆資料，fetchLastRecord() 仍會再以
-        // 「上一筆結算時間」覆蓋本次開始時間，不影響原本續報邏輯。
-        const currentShift = document.getElementById('shift').value;
-        if (currentShift === '白班') {
-            document.getElementById('startTime').value = '08:00';
-            document.getElementById('endTime').value = '17:00';
-            setWorkingHours('540');
-        }
-
-        // 如果班別也已經選了，立刻撈取上一筆資料
-        if (currentShift) {
+        if (selectedShift) {
             fetchLastRecord();
         }
     }
@@ -1066,6 +1198,209 @@ function checkUserPermission(userId, displayName) {
         partList.style.display = 'none';
         document.getElementById('partError').style.display = 'none';
         isUserTypingPart = false;
+        ensureWhiteShiftTimes();
+        fetchOpenBatchesForPart(item);
+    }
+
+
+    // =========================================================
+    // 生產批次關聯：改用直接點選卡片，避免原生 select 展開/收合造成畫面跳動
+    // 0批：自動無批次ID；1批以上：請員工明確點選正式批次或無批次ID
+    // 導入期間皆保留「無批次ID（導入前舊批次）」
+    // =========================================================
+
+    function resetBatchLink(message) {
+        selectedBatchId = "";
+        batchSelectionMade = false;
+        currentOperation = "";
+        lastBatchLookupPart = "";
+
+        const list = document.getElementById('batchChoiceList');
+        const status = document.getElementById('batchStatus');
+        const op = document.getElementById('operation');
+
+        if (list) {
+            list.innerHTML = '<button type="button" class="batch-choice-btn" disabled>請先選擇件號</button>';
+        }
+        if (op) op.value = '';
+        if (status) {
+            status.className = 'batch-status';
+            status.textContent = message || '💡 選擇件號後，系統會自動查詢尚未完成的生產批次。';
+        }
+    }
+
+    function focusBatchArea() {
+        const area = document.getElementById('batchChoiceList');
+        if (!area) return;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                area.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        });
+    }
+
+    function batchOptionText(b) {
+        const parts = [b.batchId || ''];
+        if (b.lotNo) parts.push('批號 ' + b.lotNo);
+        if (b.workOrder) parts.push('工令 ' + b.workOrder);
+        return parts.filter(Boolean).join('｜');
+    }
+
+    function setBatchChoice(batchId, button) {
+        selectedBatchId = String(batchId || '').trim();
+        batchSelectionMade = true;
+
+        document.querySelectorAll('#batchChoiceList .batch-choice-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        if (button) button.classList.add('selected');
+
+        ensureWhiteShiftTimes();
+
+        const status = document.getElementById('batchStatus');
+
+        if (selectedBatchId) {
+            status.className = 'batch-status ok';
+            status.textContent =
+                `✅ 已選擇批次 ${selectedBatchId}` +
+                (currentOperation ? `｜工序 ${currentOperation}` : '');
+        } else {
+            status.className = 'batch-status warn';
+            status.textContent = '⚠️ 已選擇「無批次ID（導入前舊批次）」。';
+        }
+    }
+
+    function makeBatchChoiceButton(text, batchId, options = {}) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'batch-choice-btn' + (options.legacy ? ' legacy' : '');
+        btn.textContent = text;
+        btn.addEventListener('click', function (event) {
+            // 批次卡只負責選取，不允許觸發表單 submit / 重新整理 / 其他 click handler
+            event.preventDefault();
+            event.stopPropagation();
+            setBatchChoice(batchId, btn);
+            return false;
+        });
+        return btn;
+    }
+
+    let lastBatchLookupPart = '';
+
+    function fetchOpenBatchesForPart(part, forceRefresh = false) {
+        const partValue = String(part || '').trim();
+        if (!partValue) {
+            lastBatchLookupPart = '';
+            resetBatchLink();
+            return;
+        }
+
+        // 同一件號的批次清單已經載入時，不要因為後續 input/change/focus
+        // 事件再次查詢，否則員工剛選好的批次會被「查詢中...」重新覆蓋。
+        const existingBatchList = document.getElementById('batchChoiceList');
+        const hasLoadedChoices =
+            existingBatchList && existingBatchList.querySelector('.batch-choice-btn:not(:disabled)');
+
+        if (!forceRefresh &&
+            lastBatchLookupPart === partValue &&
+            hasLoadedChoices) {
+            return;
+        }
+
+        lastBatchLookupPart = partValue;
+        const requestSeq = ++batchLookupRequestSeq;
+        const list = document.getElementById('batchChoiceList');
+        const status = document.getElementById('batchStatus');
+
+        selectedBatchId = '';
+        batchSelectionMade = false;
+        currentOperation = '';
+
+        list.innerHTML = '<button type="button" class="batch-choice-btn" disabled>查詢中...</button>';
+        status.className = 'batch-status';
+        status.textContent = '⏳ 正在查詢可關聯的生產批次...';
+
+        const url =
+            `${GAS_WEB_APP_URL}?action=getOpenBatchesByPart` +
+            `&part=${encodeURIComponent(partValue)}` +
+            `&_=${Date.now()}`;
+
+        fetchGasJsonWithRetry(url, 'getOpenBatchesByPart')
+        .then(data => {
+            if (requestSeq !== batchLookupRequestSeq) return;
+
+            currentOperation = String((data && data.operation) || '').trim();
+            document.getElementById('operation').value = currentOperation;
+
+            const batches = (data && data.success && Array.isArray(data.batches))
+                ? data.batches : [];
+
+            list.innerHTML = '';
+
+            if (batches.length === 0) {
+                const legacyBtn = makeBatchChoiceButton(
+                    '無批次ID（導入前舊批次）', '', { legacy: true }
+                );
+                legacyBtn.classList.add('selected');
+                list.appendChild(legacyBtn);
+                selectedBatchId = '';
+                batchSelectionMade = true;
+
+                status.className = 'batch-status ok';
+                status.textContent = '✅ 目前沒有可關聯的生產批次，已自動使用「無批次ID（導入前舊批次）」。';
+                return;
+            }
+
+            batches.forEach(b => {
+                list.appendChild(
+                    makeBatchChoiceButton(batchOptionText(b), b.batchId)
+                );
+            });
+
+            const legacyBtn = makeBatchChoiceButton(
+                '無批次ID（導入前舊批次）', '', { legacy: true }
+            );
+            list.appendChild(legacyBtn);
+
+            if (batches.length === 1) {
+                // 導入期：即使只有一個正式 Batch，也可能正在加工導入前舊料。
+                // 因此「正式 Batch」與「無批次ID」都顯示，但一律不自動選。
+                selectedBatchId = '';
+                batchSelectionMade = false;
+
+                status.className = 'batch-status warn';
+                status.textContent =
+                    `⚠️ 找到 1 個尚未完成批次，請確認本次加工批次；若為導入前舊料，請選「無批次ID」。` +
+                    (currentOperation ? `｜工序 ${currentOperation}` : '');
+
+                focusBatchArea();
+            } else {
+                // 多個正式批次：不預選，避免誤連。
+                selectedBatchId = '';
+                batchSelectionMade = false;
+                status.className = 'batch-status warn';
+                status.textContent =
+                    `⚠️ 找到 ${batches.length} 個尚未完成批次，請確認本次加工批次；若為導入前舊料，請選「無批次ID」。` +
+                    (currentOperation ? `｜工序 ${currentOperation}` : '');
+
+                focusBatchArea();
+            }
+        })
+        .catch(err => {
+            if (requestSeq !== batchLookupRequestSeq) return;
+            console.warn('查詢生產批次失敗', err);
+
+            list.innerHTML = '';
+            const legacyBtn = makeBatchChoiceButton(
+                '無批次ID（批次查詢失敗）', '', { legacy: true }
+            );
+            list.appendChild(legacyBtn);
+            selectedBatchId = '';
+            batchSelectionMade = false;
+
+            status.className = 'batch-status warn';
+            status.textContent = '⚠️ 暫時無法取得批次資料；請確認後點選「無批次ID（批次查詢失敗）」才能送出。';
+        });
     }
 
 
@@ -1091,13 +1426,19 @@ function checkUserPermission(userId, displayName) {
         unlockFormFields();
         handleShiftChange();
 
-        // 白班預設 08:00～17:00 / 540 分鐘，但仍可手動修改
+        // 班別時間規則
         if (shiftName === '白班') {
             const startTimeEl = document.getElementById('startTime');
             const endTimeEl = document.getElementById('endTime');
             if (!startTimeEl.value.trim()) startTimeEl.value = '08:00';
             if (!endTimeEl.value.trim()) endTimeEl.value = '17:00';
             setWorkingHours('540');
+        } else {
+            // 中班不可沿用白班留下的時間。
+            // 有上一筆時只由 fetchLastRecord() 帶入本筆開始時間。
+            document.getElementById('startTime').value = '';
+            document.getElementById('endTime').value = '';
+            setWorkingHours('510');
         }
 
         // 如果機台已經有選好，立刻撈取上一筆資料
@@ -1430,6 +1771,15 @@ function fetchLastRecord() {
         const startTimeEl =
             document.getElementById('startTime');
 
+        // 白班每次「上一筆查詢」完成後，都先確保標準時間存在。
+        // 後面若真的有上一筆 endTime，只覆蓋開始時間。
+        // 這可避免後端 success=true 但沒有 endTime 時，把第 5 筆之後留成空白。
+        if (shift === '白班') {
+            startTimeEl.value = '08:00';
+            document.getElementById('endTime').value = '17:00';
+            setWorkingHours('540');
+        }
+
 
         // =====================================================
         // 找到上一筆資料
@@ -1468,6 +1818,13 @@ function fetchLastRecord() {
             if (data.endTime) {
                 startTimeEl.value = data.endTime;
                 lastRecordEndTime = data.endTime;
+
+                // 中班只帶「上一筆結算時間」作為本筆開始時間；
+                // 本筆結算時間必須由員工填寫。
+                if (shift === '中班') {
+                    document.getElementById('endTime').value = '';
+                    setWorkingHours('510');
+                }
             }
 
 
@@ -1512,55 +1869,26 @@ function fetchLastRecord() {
             }, 4000);
 
 
-            // -------------------------------------------------
-            // 自動移動游標
-            // -------------------------------------------------
-
-            setTimeout(() => {
-
-                const endTimeEl =
-                    document.getElementById('endTime');
-
-                const qtyEl =
-                    document.getElementById('qty');
-
-
-                // 結算時間尚未填寫
-                // → 游標移到結算時間
-                //
-                // 已經有結算時間
-                // → 游標移到完成數量
-
-                let targetField =
-                    (!endTimeEl.value.trim())
-                        ? endTimeEl
-                        : qtyEl;
-
-
-                if (targetField) {
-
-                    targetField.focus();
-
-                    targetField.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
-                }
-
-            }, 100);
-
-
         } else {
 
             // =================================================
             // 找不到上一筆資料
             // =================================================
 
-            lastRecordEndTime =
-                null;
+            lastRecordEndTime = null;
+            hintEl.style.display = 'none';
 
-            hintEl.style.display =
-                'none';
+            // 白班沒有上一筆時，維持標準 08:00～17:00。
+            // 中班不強制帶入固定時間。
+            if (shift === '白班') {
+                document.getElementById('startTime').value = '08:00';
+                document.getElementById('endTime').value = '17:00';
+                setWorkingHours('540');
+            } else if (shift === '中班') {
+                document.getElementById('startTime').value = '';
+                document.getElementById('endTime').value = '';
+                setWorkingHours('510');
+            }
         }
     })
 
@@ -1579,6 +1907,13 @@ function fetchLastRecord() {
             "⚠️ 無法取得上一筆紀錄",
             err
         );
+
+        // 查詢失敗時也不要把白班第二筆留成空白。
+        if (shift === '白班') {
+            document.getElementById('startTime').value = '08:00';
+            document.getElementById('endTime').value = '17:00';
+            setWorkingHours('540');
+        }
     });
 }
 
@@ -1894,6 +2229,8 @@ function fetchLastRecord() {
         if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
             isUserTypingPart = true;
             selectedPart = "";
+            batchLookupRequestSeq++;
+            resetBatchLink('💡 件號變更中，選定件號後會重新查詢生產批次。');
         }
 
         let items = partList.getElementsByClassName('dropdown-item');
@@ -2169,6 +2506,16 @@ function fetchLastRecord() {
             return;
         }
 
+        // 生產批次為必填：正式 Batch ID 或「無批次ID」都必須明確選擇。
+        if (!batchSelectionMade) {
+            alert("❌ 請確認生產批次；若屬導入前舊批次，請選「無批次ID」。");
+            const batchArea = document.getElementById('batchChoiceList');
+            if (batchArea) {
+                batchArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
         const shift = document.getElementById('shift').value;
         if (!shift) {
             alert("❌ 請先選擇班別（白班或中班）！");
@@ -2339,12 +2686,15 @@ function fetchLastRecord() {
         // 封裝表單資料準備送出
         pendingFormData = {
             requestId: currentRequestId,
+            loginToken: lightLoginToken,
             userId: userProfile.userId,
             userName: realEmployeeName,
             date: document.getElementById('date').value,
             shift: shift,
             machine: machineInput.value,
             part: partInput.value,
+            batchId: selectedBatchId || "",
+            operation: currentOperation || "",
             startTime: startTime,
             endTime: endTime,
             workingHours: workingHours,
@@ -2369,6 +2719,8 @@ function fetchLastRecord() {
             <b>班別：</b>${data.shift}<br>
             <b>機台：</b>${data.machine}<br>
             <b>件號：</b>${data.part}<br>
+            <b>生產批次：</b>${data.batchId || '未關聯批次'}<br>
+            ${data.operation ? `<b>工序：</b>${data.operation}<br>` : ''}
             <b>開始時間：</b>${data.startTime}<br>
             <b>結束時間：</b>${data.endTime || '（未填）'}<br>
             <b>完成數量：</b>${data.qty} pcs<br>
@@ -2515,6 +2867,9 @@ function fetchLastRecord() {
         selectedMachine = '';
         selectedPart = '';
         isUserTypingPart = false;
+        batchLookupRequestSeq++;
+        lastRecordRequestSeq++; // 使上一筆機台尚未完成的查詢立即失效，避免舊回應覆蓋下一筆
+        resetBatchLink();
         lastRecordEndTime = null;
         currentRequestId = null;
 
@@ -2529,9 +2884,7 @@ function fetchLastRecord() {
             // 白班下一台先恢復標準預設值；選機台後若有上一筆，
             // fetchLastRecord() 會再用上一筆結算時間覆蓋開始時間。
             if (currentShift === '白班') {
-                document.getElementById('startTime').value = '08:00';
-                document.getElementById('endTime').value = '17:00';
-                setWorkingHours('540');
+                ensureWhiteShiftTimes();
             }
         }
 
@@ -2608,6 +2961,12 @@ function fetchLastRecord() {
         
         // 重設後依然保留無效工時預設值
         setDefaultInvalidItems();
+
+        // 注意：上方 invalidContainer 是重建後的新 DOM。
+        // 因此必須在重建完成後再次解鎖，否則第二筆的無效工時欄位會維持 disabled。
+        if (currentShift) {
+            unlockFormFields();
+        }
 
         machineInput.focus();
         machineInput.scrollIntoView({
